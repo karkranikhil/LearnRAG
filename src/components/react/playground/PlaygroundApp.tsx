@@ -728,12 +728,20 @@ function DmoPopulateStep() {
 // ══════════════════════════════════════════════════
 
 function stripHtmlTags(html: string): string {
-  return html
+  const stripped = html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  // Decode HTML entities (&middot; &mdash; &uuml; etc.) using the browser's parser
+  try {
+    const ta = document.createElement('textarea');
+    ta.innerHTML = stripped;
+    return ta.value.replace(/\s+/g, ' ').trim();
+  } catch {
+    return stripped;
+  }
 }
 
 function ChunkingStep() {
@@ -1353,6 +1361,28 @@ function EmbeddingStep() {
 
 function RetrievalStep() {
   const { state, dispatch } = usePlayground();
+  const [modelStatus, setModelStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [userGroqKey, setUserGroqKey] = useState<string>(() => {
+    try { return localStorage.getItem('learnrag_groq_key') ?? ''; } catch { return ''; }
+  });
+  const [showRateLimitCard, setShowRateLimitCard] = useState(false);
+  const [keyInput, setKeyInput] = useState('');
+  const [showKeyInput, setShowKeyInput] = useState(false);
+
+  // Active key: user-supplied override > env var
+  const groqKey: string = userGroqKey.trim() || (import.meta.env.PUBLIC_GROQ_API ?? '');
+  const usingGroq = groqKey.trim().length > 0;
+  const usingOwnKey = userGroqKey.trim().length > 0;
+
+  const assembledPrompt = useMemo(() => {
+    if (state.results.length === 0 || !state.query) return '';
+    const ctx = state.results
+      .map((r, i) => `[Source ${i + 1}] (score: ${r.score.toFixed(3)})\n${r.chunk.text}`)
+      .join('\n\n');
+    const model = groqKey.trim() ? 'Groq llama-3.1-8b-instant' : 'distilbert-uncased-squad';
+    return `QUESTION:\n${state.query}\n\n---\nCONTEXT (${state.results.length} chunks → ${model}):\n${ctx}`;
+  }, [state.results, state.query, groqKey]);
 
   const handleSearch = useCallback(async () => {
     if (!state.query.trim() || state.embeddedChunks.length === 0) return;
@@ -1388,23 +1418,43 @@ function RetrievalStep() {
   }, [state.query, state.embeddedChunks, state.searchType, state.topK, dispatch]);
 
   const handleGenerate = useCallback(async () => {
-    if (state.results.length === 0) return;
+    if (state.results.length === 0 || !state.query) return;
     dispatch({ type: 'SET_IS_GENERATING', payload: true });
-    dispatch({ type: 'ADD_LOG', payload: 'Step 6b: Composing grounded answer from top retrieved chunk context.' });
-    await new Promise(r => setTimeout(r, 2000));
-    const top = state.results[0];
-    const sentences = top.chunk.text.match(/[^.!?]+[.!?]+/g) || [top.chunk.text];
-    let answer = sentences.slice(0, 2).join(' ').trim();
-    if (state.results.length > 1) {
-      const s2 = state.results[1].chunk.text.match(/[^.!?]+[.!?]+/g);
-      if (s2?.[0]) answer += `\n\nAdditionally, ${s2[0].trim().charAt(0).toLowerCase() + s2[0].trim().slice(1)}`;
+    dispatch({ type: 'SET_GENERATED_ANSWER', payload: '' });
+    dispatch({ type: 'ADD_LOG', payload: 'Step 6b: Loading in-browser model (flan-t5-small)...' });
+    setModelStatus('loading');
+    try {
+      const { generateAnswer } = await import('../../../lib/generation');
+      setModelStatus('ready');
+      const usingGroq = groqKey.trim().length > 0;
+      dispatch({ type: 'ADD_LOG', payload: usingGroq ? 'Calling Groq llama-3.1-8b-instant...' : 'Model ready — running distilbert inference...' });
+      const { answer, confidence, model } = await generateAnswer(
+        state.query,
+        state.results.map(r => ({ text: r.chunk.text, score: r.score })),
+        groqKey.trim() || undefined,
+      );
+      const sourceList = state.results
+        .map((r, i) => `[Source ${i + 1}] (${r.score.toFixed(3)})`)
+        .join(', ');
+      const meta = model === 'groq'
+        ? `Sources: ${sourceList}`
+        : `Confidence: ${(confidence * 100).toFixed(1)}% · Sources: ${sourceList}`;
+      dispatch({ type: 'SET_GENERATED_ANSWER', payload: `${answer}\n\n---\n${meta}` });
+      dispatch({ type: 'ADD_LOG', payload: 'Answer generated from retrieved context.' });
+    } catch (err) {
+      const { GroqRateLimitError } = await import('../../../lib/generation');
+      if (err instanceof GroqRateLimitError) {
+        setShowRateLimitCard(true);
+        dispatch({ type: 'ADD_LOG', payload: 'Groq daily limit reached — enter your own key to continue.' });
+      } else {
+        setModelStatus('error');
+        dispatch({ type: 'ADD_LOG', payload: 'Generation failed — see browser console.' });
+        console.error('Generation failed:', err);
+      }
+    } finally {
+      dispatch({ type: 'SET_IS_GENERATING', payload: false });
     }
-    answer += `\n\n---\nSources: [Chunk 1] (${top.score.toFixed(3)})${state.results.length > 1 ? `, [Chunk 2] (${state.results[1].score.toFixed(3)})` : ''}`;
-    answer += '\n\n[Simulated — connect an LLM API for real generation]';
-    dispatch({ type: 'SET_GENERATED_ANSWER', payload: answer });
-    dispatch({ type: 'ADD_LOG', payload: 'Answer generation complete with chunk citations.' });
-    dispatch({ type: 'SET_IS_GENERATING', payload: false });
-  }, [state.results, dispatch]);
+  }, [state.results, state.query, dispatch]);
 
   return (
     <div>
@@ -1467,25 +1517,156 @@ function RetrievalStep() {
             {state.isSearching ? 'Searching...' : 'Search'}
           </button>
 
+
           {state.results.length > 0 && (
-            <button onClick={handleGenerate} disabled={state.isGenerating}
-              style={{
-                padding: '0.625rem 1.25rem',
-                background: state.isGenerating ? 'rgba(74,222,128,0.2)' : '#4ade80',
-                color: state.isGenerating ? '#636363' : '#0a2010',
-                border: 'none', borderRadius: '0.5rem', cursor: state.isGenerating ? 'wait' : 'pointer',
-                fontWeight: 600, fontSize: '0.875rem',
-              }}>
-              {state.isGenerating ? 'Generating...' : 'Generate Answer'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              <button onClick={handleGenerate} disabled={state.isGenerating}
+                style={{
+                  padding: '0.625rem 1.25rem',
+                  background: state.isGenerating ? 'rgba(74,222,128,0.2)' : '#4ade80',
+                  color: state.isGenerating ? '#636363' : '#0a2010',
+                  border: 'none', borderRadius: '0.5rem', cursor: state.isGenerating ? 'wait' : 'pointer',
+                  fontWeight: 600, fontSize: '0.875rem',
+                }}>
+                {state.isGenerating ? 'Generating...' : state.generatedAnswer ? 'Regenerate' : 'Generate Answer'}
+              </button>
+              {modelStatus === 'loading' && !usingGroq && (
+                <div style={{ fontSize: '0.625rem', color: '#93c5fd', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.4 }}>
+                  ⬇ Downloading distilbert (~65 MB)<br />first time only, cached after
+                </div>
+              )}
+              {modelStatus === 'ready' && state.isGenerating && (
+                <div style={{ fontSize: '0.625rem', color: '#4ade80', fontFamily: "'JetBrains Mono', monospace" }}>
+                  ✓ Model ready — running inference...
+                </div>
+              )}
+              {modelStatus === 'error' && (
+                <div style={{ fontSize: '0.625rem', color: '#f87171', fontFamily: "'JetBrains Mono', monospace" }}>
+                  ✗ Model failed to load. Try again.
+                </div>
+              )}
+            </div>
           )}
         </div>
 
         {/* Right: Results */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+          {/* Rate limit card — shown when shared key is exhausted */}
+          {showRateLimitCard && !usingOwnKey && (
+            <div style={{ padding: '1.25rem', background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '0.75rem' }}>
+              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fbbf24', marginBottom: '0.375rem' }}>
+                Daily limit reached on the shared key
+              </div>
+              <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', margin: '0 0 0.875rem', lineHeight: 1.5 }}>
+                Groq's free tier allows 14,400 requests/day. Use your own free key to keep going — takes 30 seconds to create.
+              </p>
+              <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: '0.8125rem', color: '#4ade80', display: 'inline-block', marginBottom: '0.875rem' }}>
+                → Get a free Groq key at console.groq.com
+              </a>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input
+                  type={showKeyInput ? 'text' : 'password'}
+                  value={keyInput}
+                  onChange={e => setKeyInput(e.target.value)}
+                  placeholder="Paste your gsk_... key here"
+                  style={{
+                    flex: 1, padding: '0.5rem 0.75rem', fontSize: '0.8125rem',
+                    background: 'rgba(22,19,30,0.8)', border: '1px solid rgba(251,191,36,0.3)',
+                    borderRadius: '0.5rem', color: '#e0e0e0',
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                />
+                <button onClick={() => setShowKeyInput(p => !p)} style={{
+                  padding: '0.5rem 0.625rem', background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.08)', borderRadius: '0.5rem',
+                  color: '#636363', cursor: 'pointer', fontSize: '0.75rem', whiteSpace: 'nowrap',
+                }}>
+                  {showKeyInput ? 'hide' : 'show'}
+                </button>
+                <button
+                  onClick={() => {
+                    const k = keyInput.trim();
+                    if (!k) return;
+                    try { localStorage.setItem('learnrag_groq_key', k); } catch { /* noop */ }
+                    setUserGroqKey(k);
+                    setShowRateLimitCard(false);
+                    setKeyInput('');
+                  }}
+                  disabled={!keyInput.trim()}
+                  style={{
+                    padding: '0.5rem 1rem', fontWeight: 600, fontSize: '0.8125rem',
+                    background: keyInput.trim() ? '#fbbf24' : 'rgba(251,191,36,0.2)',
+                    color: keyInput.trim() ? '#0a0a0a' : '#636363',
+                    border: 'none', borderRadius: '0.5rem',
+                    cursor: keyInput.trim() ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap',
+                  }}
+                >
+                  Use my key
+                </button>
+              </div>
+            </div>
+          )}
+
           {state.results.length === 0 && !state.isSearching && (
             <div style={{ padding: '3rem', textAlign: 'center', color: '#636363', background: 'rgba(30,26,41,0.3)', borderRadius: '0.75rem', border: '1px dashed rgba(255,255,255,0.06)' }}>
               Enter a query and click Search to find relevant chunks.
+            </div>
+          )}
+
+          {/* Generated Answer — shown above results once available */}
+          {state.generatedAnswer && (
+            <div style={{ padding: '1.25rem', background: 'rgba(168,85,247,0.04)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: '0.75rem' }}>
+              <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#b87dff', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: '0.625rem' }}>
+                Generated Answer{' '}
+                <span style={{ color: '#4ade80', marginLeft: '0.5rem' }}>
+                  {usingGroq ? 'groq / llama-3.1-8b' : 'distilbert-squad'}
+                </span>
+              </div>
+              {/* Answer body (before the --- divider) */}
+              <div style={{ fontSize: '0.9rem', lineHeight: 1.75, color: '#e0e0e0', whiteSpace: 'pre-wrap', marginBottom: '0.625rem' }}>
+                {state.generatedAnswer.split('\n\n---\n')[0]}
+              </div>
+              {/* Sources */}
+              {state.generatedAnswer.includes('---') && (
+                <div style={{ borderTop: '1px solid rgba(168,85,247,0.12)', paddingTop: '0.5rem', fontSize: '0.75rem', color: '#4ade80', fontFamily: "'JetBrains Mono', monospace" }}>
+                  {state.generatedAnswer.split('\n\n---\n')[1]}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Assembled Prompt — visible bridge between retrieval and generation */}
+          {state.results.length > 0 && assembledPrompt && (
+            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '0.75rem', overflow: 'hidden' }}>
+              <button
+                onClick={() => setShowPrompt(p => !p)}
+                style={{
+                  width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '0.625rem 0.875rem', background: 'rgba(30,26,41,0.6)',
+                  border: 'none', cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#636363', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
+                  Assembled Prompt
+                </span>
+                <span style={{ fontSize: '0.6875rem', color: '#636363', fontFamily: "'JetBrains Mono', monospace" }}>
+                  {showPrompt ? '▲ hide' : '▼ show'}
+                </span>
+              </button>
+              {showPrompt && (
+                <pre style={{
+                  margin: 0, padding: '0.875rem',
+                  background: 'rgba(13,17,23,0.8)',
+                  fontSize: '0.6875rem', color: '#8b8b8b',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  maxHeight: '280px', overflow: 'auto',
+                }}>
+                  {assembledPrompt}
+                </pre>
+              )}
             </div>
           )}
 
@@ -1514,13 +1695,6 @@ function RetrievalStep() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {state.generatedAnswer && (
-            <div style={{ padding: '1.25rem', background: 'rgba(168,85,247,0.04)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: '0.75rem' }}>
-              <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#b87dff', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: '0.625rem' }}>Generated Answer</div>
-              <div style={{ fontSize: '0.875rem', lineHeight: 1.75, whiteSpace: 'pre-wrap', color: '#c0c0c0' }}>{state.generatedAnswer}</div>
             </div>
           )}
         </div>

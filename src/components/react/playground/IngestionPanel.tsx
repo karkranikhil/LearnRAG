@@ -14,6 +14,7 @@ interface SampleDataset {
   sourceUrl: string;
   sourceLabel: string;
   text: string;
+  sampleQuery: string;
 }
 
 const SAMPLE_DATASETS: SampleDataset[] = [
@@ -27,6 +28,7 @@ const SAMPLE_DATASETS: SampleDataset[] = [
     suggestedStrategy: 'section-aware',
     sourceUrl: '/samples/technical-docs.html',
     sourceLabel: 'View documentation page',
+    sampleQuery: 'What is the best indexing algorithm for most RAG applications?',
     text: `# How to Configure Vector Database Indexing
 
 ## Overview
@@ -72,6 +74,7 @@ The most common mistake is using default parameters without tuning. Increasing e
     suggestedStrategy: 'passage-extraction',
     sourceUrl: '/samples/research-paper.html',
     sourceLabel: 'View paper',
+    sampleQuery: 'What problem does retrieval-augmented generation solve?',
     text: `Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
 
 Abstract
@@ -98,6 +101,7 @@ The key contribution of this work is showing that retrieval-augmented generation
     suggestedStrategy: 'conversation',
     sourceUrl: '/samples/support-transcript.html',
     sourceLabel: 'View ticket',
+    sampleQuery: 'Why was the customer account locked?',
     text: `Customer: Hi, I'm having trouble with my account. I can't log in since yesterday.
 Agent: I'm sorry to hear that. Let me help you with your login issue. Can you tell me what error message you're seeing?
 Customer: It says "Invalid credentials" every time I try, but I'm 100% sure my password is correct. I even checked caps lock.
@@ -121,6 +125,7 @@ Agent: You're welcome! Is there anything else I can help you with today?`,
     suggestedStrategy: 'section-aware',
     sourceUrl: '/samples/product-faq.html',
     sourceLabel: 'View website',
+    sampleQuery: 'How does CloudSync pricing work and is there a free tier?',
     text: `# Frequently Asked Questions
 
 ## Getting Started
@@ -167,6 +172,7 @@ You choose your processing region during setup. We currently support US-East, US
     suggestedStrategy: 'sentence',
     sourceUrl: '/samples/employee-handbook.html',
     sourceLabel: 'View document',
+    sampleQuery: 'How many days of PTO do employees receive per year?',
     text: `Remote Work Policy
 
 All full-time employees are eligible for remote work after completing their 90-day onboarding period. Remote work arrangements must be approved by your direct manager and HR. Employees working remotely are expected to maintain core hours of 10 AM to 3 PM in their local time zone for meetings and collaboration.
@@ -202,6 +208,7 @@ export default function IngestionPanel() {
     dispatch({ type: 'SET_SOURCE_URL', payload: sample.sourceUrl });
     dispatch({ type: 'SET_SOURCE_LOADED_AT', payload: new Date().toISOString() });
     dispatch({ type: 'SET_CHUNK_STRATEGY', payload: sample.suggestedStrategy });
+    dispatch({ type: 'SET_QUERY', payload: sample.sampleQuery });
     dispatch({ type: 'CLEAR_LOG' });
     dispatch({ type: 'ADD_LOG', payload: `Step 1: Data Stream load started — "${sample.label}" (${sample.wordCount} words).` });
     dispatch({ type: 'SET_CHUNKS', payload: [] });
@@ -278,15 +285,25 @@ export default function IngestionPanel() {
         })}
       </div>
 
-      {/* Preview */}
-      {state.rawText && (
-        <div style={{
-          padding: '0.75rem', maxHeight: '200px', overflow: 'auto',
-          background: 'rgba(22,19,30,0.6)', border: '1px solid rgba(74,222,128,0.1)',
-          borderRadius: '0.75rem', fontSize: '0.75rem', color: '#8b8b8b',
-          fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.5, whiteSpace: 'pre-wrap',
-        }}>
-          {state.rawText}
+      {/* Preview — show raw HTML source when available, else plain text */}
+      {(state.rawHtml || state.rawText) && (
+        <div>
+          <div style={{
+            fontSize: '0.6875rem', fontWeight: 600, marginBottom: '0.375rem',
+            color: state.rawHtml ? '#93c5fd' : '#4ade80',
+            fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em',
+            textTransform: 'uppercase' as const,
+          }}>
+            {state.rawHtml ? 'Raw HTML Source' : 'Plain Text Source'}
+          </div>
+          <div style={{
+            padding: '0.75rem', maxHeight: '200px', overflow: 'auto',
+            background: 'rgba(13,17,23,0.8)', border: `1px solid ${state.rawHtml ? 'rgba(147,197,253,0.15)' : 'rgba(74,222,128,0.1)'}`,
+            borderRadius: '0.75rem', fontSize: '0.75rem', color: '#8b8b8b',
+            fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.5, whiteSpace: 'pre-wrap',
+          }}>
+            {state.rawHtml || state.rawText}
+          </div>
         </div>
       )}
     </div>
