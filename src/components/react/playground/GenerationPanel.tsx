@@ -96,20 +96,20 @@ export default function GenerationPanel() {
       {/* Rate limit card */}
       {showRateLimitCard && (
         <div style={{ padding: '1rem', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '0.75rem' }}>
-          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fbbf24', marginBottom: '0.5rem' }}>Daily limit reached on the shared key</div>
-          <p style={{ fontSize: '0.75rem', color: '#8b8b8b', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#fbbf24', marginBottom: '0.5rem' }}>Daily limit reached on the shared key</div>
+          <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '0.75rem', lineHeight: 1.5 }}>
             Enter your own free Groq API key to continue. Get one at <strong style={{ color: '#c0c0c0' }}>console.groq.com</strong> — free tier gives 14,400 requests/day.
           </p>
           {!showKeyInput ? (
-            <button onClick={() => setShowKeyInput(true)} style={{ padding: '0.375rem 0.875rem', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '0.375rem', color: '#fbbf24', fontSize: '0.75rem', cursor: 'pointer' }}>
+            <button onClick={() => setShowKeyInput(true)} style={{ padding: '0.375rem 0.875rem', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '0.375rem', color: '#fbbf24', fontSize: '0.8125rem', cursor: 'pointer' }}>
               Enter API key
             </button>
           ) : (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input type="password" value={keyInput} onChange={e => setKeyInput(e.target.value)} placeholder="gsk_..."
-                style={{ flex: 1, padding: '0.375rem 0.625rem', background: 'rgba(22,19,30,0.6)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '0.375rem', color: '#e0e0e0', fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace" }} />
+                style={{ flex: 1, padding: '0.375rem 0.625rem', background: 'rgba(22,19,30,0.6)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '0.375rem', color: '#e0e0e0', fontSize: '0.8125rem', fontFamily: "'JetBrains Mono', monospace" }} />
               <button onClick={() => { setUserGroqKey(keyInput); setShowRateLimitCard(false); setShowKeyInput(false); }}
-                style={{ padding: '0.375rem 0.875rem', background: '#fbbf24', color: '#1a1208', border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>
+                style={{ padding: '0.375rem 0.875rem', background: '#fbbf24', color: '#1a1208', border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>
                 Save
               </button>
             </div>
@@ -121,23 +121,23 @@ export default function GenerationPanel() {
       {state.generatedAnswer && (
         <div style={{ padding: '1.25rem', background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#b87dff', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#b87dff', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
               Generated Answer
             </div>
             {modelLabel && (
-              <span style={{ fontSize: '0.6rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', background: 'rgba(255,255,255,0.04)', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>
+              <span style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', background: 'rgba(255,255,255,0.04)', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>
                 {modelLabel}
               </span>
             )}
           </div>
-          <div style={{ fontSize: '0.9rem', lineHeight: 1.75, color: '#e0e0e0', whiteSpace: 'pre-wrap', marginBottom: '0.75rem' }}>
+          <div style={{ fontSize: '0.9375rem', lineHeight: 1.75, color: '#e0e0e0', whiteSpace: 'pre-wrap', marginBottom: '0.75rem' }}>
             {state.generatedAnswer.split('\n\n---\n')[0]}
           </div>
           {state.generatedAnswer.includes('---') && (
             <div style={{ borderTop: '1px solid rgba(168,85,247,0.12)', paddingTop: '0.625rem' }}>
               {state.generatedAnswer.split('\n\n---\n').slice(1).join('\n\n---\n').split('\n').filter(Boolean).map((line, i) => (
                 <div key={i} style={{
-                  fontSize: '0.75rem',
+                  fontSize: '0.8125rem',
                   fontFamily: "'JetBrains Mono', monospace",
                   color: line.startsWith('Sources:') ? '#4ade80' : '#636363',
                 }}>
@@ -157,7 +157,7 @@ export default function GenerationPanel() {
         border: clientRateWait > 0 ? '1px solid rgba(251,191,36,0.3)' : 'none',
         borderRadius: '0.5rem',
         cursor: (state.isGenerating || clientRateWait > 0) ? 'not-allowed' : 'pointer',
-        fontWeight: 600, fontSize: '0.9375rem',
+        fontWeight: 600, fontSize: '1rem',
         alignSelf: 'flex-start',
         boxShadow: (state.isGenerating || clientRateWait > 0) ? 'none' : '0 0 20px rgba(168,85,247,0.15)',
         transition: 'all 0.15s',
@@ -171,13 +171,13 @@ export default function GenerationPanel() {
       {/* User query (read-only) */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-          <label style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>User Query</label>
-          <span style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363' }}>~{queryTokens} tokens</span>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>User Query</label>
+          <span style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363' }}>~{queryTokens} tokens</span>
         </div>
         <div style={{
           padding: '0.625rem 0.875rem', background: 'rgba(251,191,36,0.04)',
           border: '1px solid rgba(251,191,36,0.1)', borderRadius: '0.5rem',
-          fontSize: '0.875rem', color: '#e0e0e0',
+          fontSize: '0.9375rem', color: '#e0e0e0',
         }}>
           {state.query}
         </div>
@@ -186,25 +186,25 @@ export default function GenerationPanel() {
       {/* System prompt (editable) */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-          <label style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#b87dff', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>System Prompt</label>
-          <span style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363' }}>~{systemTokens} tokens</span>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#b87dff', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>System Prompt</label>
+          <span style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363' }}>~{systemTokens} tokens</span>
         </div>
         <textarea value={systemPrompt} onChange={e => setSystemPrompt(e.target.value)} rows={4}
-          style={{ width: '100%', padding: '0.625rem', background: 'rgba(22,19,30,0.6)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: '0.5rem', color: '#e0e0e0', fontSize: '0.8125rem', fontFamily: "'JetBrains Mono', monospace", resize: 'vertical', lineHeight: 1.5 }} />
+          style={{ width: '100%', padding: '0.625rem', background: 'rgba(22,19,30,0.6)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: '0.5rem', color: '#e0e0e0', fontSize: '0.875rem', fontFamily: "'JetBrains Mono', monospace", resize: 'vertical', lineHeight: 1.5 }} />
       </div>
 
       {/* Retrieved chunks (read-only summary) */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-          <label style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#4ade80', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Retrieved Context ({topChunks.length} chunks)</label>
-          <span style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363' }}>~{contextTokens} tokens</span>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4ade80', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Retrieved Context ({topChunks.length} chunks)</label>
+          <span style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363' }}>~{contextTokens} tokens</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {topChunks.map((r, i) => (
-            <div key={r.chunk.id} style={{ padding: '0.5rem 0.625rem', background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.08)', borderRadius: '0.375rem', fontSize: '0.75rem' }}>
+            <div key={r.chunk.id} style={{ padding: '0.5rem 0.625rem', background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.08)', borderRadius: '0.375rem', fontSize: '0.8125rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
-                <span style={{ fontWeight: 600, color: '#4ade80', fontSize: '0.6875rem' }}>[Chunk {i + 1}]</span>
-                <span style={{ color: '#636363', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6875rem' }}>{r.score.toFixed(3)}</span>
+                <span style={{ fontWeight: 600, color: '#4ade80', fontSize: '0.75rem' }}>[Chunk {i + 1}]</span>
+                <span style={{ color: '#636363', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem' }}>{r.score.toFixed(3)}</span>
               </div>
               <div style={{ color: '#8b8b8b', lineHeight: 1.4 }}>{r.chunk.text.slice(0, 120)}{r.chunk.text.length > 120 ? '...' : ''}</div>
             </div>
@@ -214,7 +214,7 @@ export default function GenerationPanel() {
 
       {/* Token summary bar */}
       <div style={{
-        display: 'flex', gap: '1rem', fontSize: '0.6875rem', padding: '0.625rem 0.875rem',
+        display: 'flex', gap: '1rem', fontSize: '0.75rem', padding: '0.625rem 0.875rem',
         background: 'rgba(10,8,16,0.6)', borderRadius: '0.5rem',
         fontFamily: "'JetBrains Mono', monospace", flexWrap: 'wrap',
         alignItems: 'center',
@@ -226,7 +226,7 @@ export default function GenerationPanel() {
         <span style={{ flex: 1 }} />
         <button onClick={() => setShowFullPrompt(!showFullPrompt)} style={{
           background: 'none', border: 'none', color: '#636363', cursor: 'pointer',
-          fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace",
           textDecoration: 'underline', textUnderlineOffset: '2px',
         }}>
           {showFullPrompt ? 'Hide' : 'View'} full prompt
@@ -238,7 +238,7 @@ export default function GenerationPanel() {
         <pre style={{
           padding: '0.875rem', background: 'rgba(10,8,16,0.8)',
           border: '1px solid rgba(255,255,255,0.04)', borderRadius: '0.5rem',
-          fontSize: '0.75rem', color: '#8b8b8b', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          fontSize: '0.8125rem', color: '#8b8b8b', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
           maxHeight: '300px', overflow: 'auto', lineHeight: 1.5, margin: 0,
           fontFamily: "'JetBrains Mono', monospace",
         }}>

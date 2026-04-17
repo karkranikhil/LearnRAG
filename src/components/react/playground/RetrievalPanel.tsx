@@ -74,7 +74,7 @@ export default function RetrievalPanel() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       {noChunks && (
         <div style={{
-          padding: '1.5rem', textAlign: 'center', fontSize: '0.875rem',
+          padding: '1.5rem', textAlign: 'center', fontSize: '0.9375rem',
           background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.15)',
           borderRadius: '0.75rem', color: '#fbbf24',
         }}>
@@ -85,7 +85,7 @@ export default function RetrievalPanel() {
       {/* Search type selector */}
       <div>
         <label style={{
-          fontSize: '0.6875rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem',
+          fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem',
           color: '#b87dff', letterSpacing: '0.08em', textTransform: 'uppercase' as const,
           fontFamily: "'JetBrains Mono', monospace",
         }}>
@@ -101,7 +101,7 @@ export default function RetrievalPanel() {
                 title={st.description}
                 style={{
                   padding: '0.5rem 1rem',
-                  fontSize: '0.8125rem',
+                  fontSize: '0.875rem',
                   fontWeight: isActive ? 600 : 400,
                   background: isActive ? 'rgba(168,85,247,0.1)' : 'transparent',
                   border: `1px solid ${isActive ? 'rgba(168,85,247,0.3)' : 'rgba(255,255,255,0.06)'}`,
@@ -117,7 +117,7 @@ export default function RetrievalPanel() {
           })}
         </div>
         <p style={{
-          margin: '0.375rem 0 0', fontSize: '0.6875rem', color: '#636363', lineHeight: 1.4,
+          margin: '0.375rem 0 0', fontSize: '0.75rem', color: '#636363', lineHeight: 1.4,
         }}>
           {SEARCH_TYPES.find(s => s.id === state.searchType)?.description}
         </p>
@@ -126,7 +126,7 @@ export default function RetrievalPanel() {
       {/* Top-K selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <label style={{
-          fontSize: '0.6875rem', fontWeight: 600, color: '#636363',
+          fontSize: '0.75rem', fontWeight: 600, color: '#636363',
           fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em',
           textTransform: 'uppercase' as const, whiteSpace: 'nowrap',
         }}>
@@ -151,7 +151,7 @@ export default function RetrievalPanel() {
           style={{
             flex: 1, padding: '0.75rem 1rem',
             background: 'rgba(22,19,30,0.6)', border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '0.5rem', color: '#e0e0e0', fontSize: '0.9375rem',
+            borderRadius: '0.5rem', color: '#e0e0e0', fontSize: '1rem',
           }}
         />
         <button
@@ -163,7 +163,7 @@ export default function RetrievalPanel() {
             color: (noChunks || !state.query.trim()) ? 'rgba(240,240,240,0.4)' : '#f0f0f0',
             border: 'none', borderRadius: '0.5rem',
             cursor: (noChunks || !state.query.trim()) ? 'not-allowed' : 'pointer',
-            fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap',
+            fontWeight: 600, fontSize: '0.9375rem', whiteSpace: 'nowrap',
             boxShadow: (noChunks || !state.query.trim()) ? 'none' : '0 0 20px rgba(168,85,247,0.15)',
             transition: 'all 0.15s',
           }}
@@ -176,13 +176,13 @@ export default function RetrievalPanel() {
       {state.results.length > 0 && (
         <div>
           <div style={{
-            fontSize: '0.6875rem', fontWeight: 600, marginBottom: '0.75rem', color: '#636363',
+            fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.75rem', color: '#636363',
             fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <span>Top {state.results.length} results — {state.searchType} search</span>
             {state.searchType === 'hybrid' && (
-              <span style={{ fontSize: '0.6875rem', color: '#636363', fontWeight: 400, textTransform: 'none' }}>
+              <span style={{ fontSize: '0.75rem', color: '#636363', fontWeight: 400, textTransform: 'none' }}>
                 60% semantic + 40% keyword
               </span>
             )}
@@ -203,20 +203,20 @@ export default function RetrievalPanel() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{
-                      fontSize: '0.75rem', fontWeight: 700,
+                      fontSize: '0.8125rem', fontWeight: 700,
                       color: i === 0 ? '#4ade80' : '#b87dff',
                     }}>
                       #{i + 1}
                     </span>
                     <span style={{
-                      fontSize: '0.6875rem', color: '#636363',
+                      fontSize: '0.75rem', color: '#636363',
                       fontFamily: "'JetBrains Mono', monospace",
                     }}>
                       Chunk {result.chunk.id + 1}
                     </span>
                     {result.matchType && state.searchType === 'hybrid' && (
                       <span style={{
-                        fontSize: '0.6875rem', fontWeight: 600,
+                        fontSize: '0.75rem', fontWeight: 600,
                         padding: '1px 6px', borderRadius: '9999px',
                         fontFamily: "'JetBrains Mono', monospace",
                         letterSpacing: '0.05em', textTransform: 'uppercase' as const,
@@ -229,7 +229,7 @@ export default function RetrievalPanel() {
                     )}
                   </div>
                   <span style={{
-                    fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem',
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: '0.8125rem',
                     padding: '0.125rem 0.5rem', borderRadius: '9999px',
                     background: `${getScoreColor(result.score)}15`,
                     color: getScoreColor(result.score),
@@ -238,7 +238,7 @@ export default function RetrievalPanel() {
                     {result.score.toFixed(4)}
                   </span>
                 </div>
-                <p style={{ margin: 0, fontSize: '0.8125rem', lineHeight: 1.65, color: '#c0c0c0' }}>
+                <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.65, color: '#c0c0c0' }}>
                   {result.chunk.text}
                 </p>
                 <div style={{
@@ -258,7 +258,7 @@ export default function RetrievalPanel() {
       )}
 
       {state.results.length === 0 && !noChunks && state.query && !state.isSearching && (
-        <div style={{ padding: '1rem', textAlign: 'center', color: '#636363', fontSize: '0.875rem' }}>
+        <div style={{ padding: '1rem', textAlign: 'center', color: '#636363', fontSize: '0.9375rem' }}>
           Press Search or Enter to find relevant chunks.
         </div>
       )}

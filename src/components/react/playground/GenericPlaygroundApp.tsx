@@ -25,7 +25,7 @@ const STEP_IDX: Record<string, number> = {
 // ── Shared styles ──
 
 const labelStyle: React.CSSProperties = {
-  fontSize: '0.6875rem', fontWeight: 600, display: 'block', marginBottom: '0.375rem',
+  fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.375rem',
   color: '#636363', letterSpacing: '0.08em', textTransform: 'uppercase',
   fontFamily: "'JetBrains Mono', monospace",
 };
@@ -33,7 +33,7 @@ const labelStyle: React.CSSProperties = {
 const selectStyle: React.CSSProperties = {
   width: '100%', padding: '0.5rem',
   background: 'rgba(22,19,30,0.6)', border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '0.5rem', color: '#e0e0e0', fontSize: '0.8125rem',
+  borderRadius: '0.5rem', color: '#e0e0e0', fontSize: '0.875rem',
 };
 
 const COLORS = ['#a855f7', '#4ade80', '#fbbf24', '#f87171', '#3b82f6', '#ec4899', '#14b8a6', '#f97316'];
@@ -92,7 +92,7 @@ function PipelineProgressPanel({ status, currentStep }: {
       backdropFilter: 'blur(12px)',
     }}>
       <div style={{
-        fontSize: '0.625rem', fontFamily: "'JetBrains Mono', monospace",
+        fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace",
         color: '#4ade80', letterSpacing: '0.09em', textTransform: 'uppercase' as const,
         fontWeight: 700, marginBottom: '0.875rem',
       }}>
@@ -101,10 +101,10 @@ function PipelineProgressPanel({ status, currentStep }: {
 
       <div style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-          <span style={{ fontSize: '0.625rem', color: '#6b7280', fontFamily: "'JetBrains Mono', monospace" }}>
+          <span style={{ fontSize: '0.6875rem', color: '#6b7280', fontFamily: "'JetBrains Mono', monospace" }}>
             {doneCount}/{PIPELINE_OPS.length} complete
           </span>
-          <span style={{ fontSize: '0.625rem', color: progressPct === 100 ? '#4ade80' : '#93c5fd', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+          <span style={{ fontSize: '0.6875rem', color: progressPct === 100 ? '#4ade80' : '#93c5fd', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
             {progressPct}%
           </span>
         </div>
@@ -152,20 +152,20 @@ function PipelineProgressPanel({ status, currentStep }: {
 
               <div style={{ paddingBottom: isLast ? 0 : '0.875rem', flex: 1 }}>
                 <div style={{
-                  fontSize: '0.72rem', fontWeight: 600, marginBottom: '0.1rem',
+                  fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.1rem',
                   color: opState.done ? '#d1fae5' : opState.active ? '#bfdbfe' : '#9ca3af',
                   transition: 'color 0.2s',
                 }}>
                   {op.label}
                 </div>
                 <div style={{
-                  fontSize: '0.5625rem', fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace",
                   color: opState.done ? 'rgba(74,222,128,0.7)' : opState.active ? 'rgba(147,197,253,0.7)' : '#4b5563',
                   marginBottom: '0.2rem', letterSpacing: '0.04em',
                 }}>
                   {opState.done ? '✓ done' : opState.active ? '⟳ running' : 'pending'}
                 </div>
-                <div style={{ fontSize: '0.6875rem', color: '#6b7280', lineHeight: 1.4 }}>
+                <div style={{ fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.4 }}>
                   {op.detail}
                 </div>
               </div>
@@ -197,13 +197,13 @@ function StepNav({ canGoBack, canGoNext, goBack, goNext, currentIdx, nextLabel, 
           padding: '0.5rem 1rem', background: 'transparent',
           border: `1px solid ${canGoBack ? 'rgba(255,255,255,0.1)' : 'transparent'}`,
           borderRadius: '0.5rem', color: canGoBack ? '#c0c0c0' : 'transparent',
-          cursor: canGoBack ? 'pointer' : 'default', fontSize: '0.8125rem', fontWeight: 500,
+          cursor: canGoBack ? 'pointer' : 'default', fontSize: '0.875rem', fontWeight: 500,
           transition: 'border-color 0.15s, color 0.15s',
         }}>
         <ChevronLeft size={16} />
         {canGoBack ? prevLabel : ''}
       </button>
-      <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', letterSpacing: '0.05em' }}>
+      <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', letterSpacing: '0.05em' }}>
         Step {currentIdx + 1} of {STEPS.length}
       </div>
       <button onClick={goNext} disabled={!canGoNext}
@@ -213,7 +213,7 @@ function StepNav({ canGoBack, canGoNext, goBack, goNext, currentIdx, nextLabel, 
           background: canGoNext ? '#3b82f6' : 'rgba(59,130,246,0.15)',
           border: 'none', borderRadius: '0.5rem',
           color: canGoNext ? '#f0f0f0' : '#4a4a4a',
-          cursor: canGoNext ? 'pointer' : 'default', fontSize: '0.8125rem', fontWeight: 600,
+          cursor: canGoNext ? 'pointer' : 'default', fontSize: '0.875rem', fontWeight: 600,
           boxShadow: canGoNext ? '0 0 20px rgba(59,130,246,0.2)' : 'none',
           transition: 'all 0.15s',
         }}>
@@ -296,10 +296,10 @@ export default function GenericPlaygroundApp() {
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f0f0f0', marginBottom: '0.75rem' }}>
               Best viewed on Desktop
             </h2>
-            <p style={{ fontSize: '0.875rem', color: '#8b8b8b', lineHeight: 1.6, maxWidth: '300px', marginBottom: '1.5rem' }}>
+            <p style={{ fontSize: '0.9375rem', color: '#8b8b8b', lineHeight: 1.6, maxWidth: '300px', marginBottom: '1.5rem' }}>
               The RAG Playground is interactive and requires a wider screen. Open it on a laptop or desktop for the full experience.
             </p>
-            <a href="/" style={{ padding: '0.625rem 1.25rem', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '0.5rem', color: '#60a5fa', fontSize: '0.875rem', textDecoration: 'none', fontWeight: 500 }}>
+            <a href="/" style={{ padding: '0.625rem 1.25rem', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '0.5rem', color: '#60a5fa', fontSize: '0.9375rem', textDecoration: 'none', fontWeight: 500 }}>
               ← Back to LearnRAG
             </a>
           </div>
@@ -319,15 +319,15 @@ export default function GenericPlaygroundApp() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <a href="/" style={{ color: '#f0f0f0', fontSize: '1.125rem', fontWeight: 700, letterSpacing: '-0.03em', textDecoration: 'none' }}>LearnRAG</a>
               <span style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.08)' }} />
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#60a5fa', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.05em', textTransform: 'uppercase' as const }}>RAG Playground</span>
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#60a5fa', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.05em', textTransform: 'uppercase' as const }}>RAG Playground</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace" }}>
+              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace" }}>
                 {hasData && <span style={{ color: '#4ade80', background: 'rgba(74,222,128,0.08)', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>{state.rawText.split(/\s+/).length} words</span>}
                 {hasChunks && <span style={{ color: '#60a5fa', background: 'rgba(59,130,246,0.08)', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>{state.chunks.length} chunks</span>}
                 {hasEmbeddings && <span style={{ color: '#4ade80', background: 'rgba(74,222,128,0.08)', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>{state.embeddedChunks[0].embedding.length}d vectors</span>}
               </div>
-              <a href="/playground/" style={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: "'JetBrains Mono', monospace", textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem', transition: 'color 0.15s', padding: '0.25rem 0.5rem', borderRadius: '0.375rem', border: '1px solid rgba(255,255,255,0.06)' }}
+              <a href="/playground/" style={{ fontSize: '0.75rem', color: '#94a3b8', fontFamily: "'JetBrains Mono', monospace", textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem', transition: 'color 0.15s', padding: '0.25rem 0.5rem', borderRadius: '0.375rem', border: '1px solid rgba(255,255,255,0.06)' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#e0e0e0')}
                 onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}>
                 ← All Playgrounds
@@ -363,7 +363,7 @@ export default function GenericPlaygroundApp() {
                       <div style={{
                         width: '2rem', height: '2rem', borderRadius: '50%', flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.75rem', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: '0.8125rem', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
                         background: isDone ? '#3b82f6' : isActive ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
                         border: `2px solid ${isDone ? '#3b82f6' : isActive ? '#3b82f6' : 'rgba(255,255,255,0.2)'}`,
                         color: isDone ? '#fff' : isActive ? '#60a5fa' : '#9ca3af',
@@ -373,12 +373,12 @@ export default function GenericPlaygroundApp() {
                       </div>
                       <div style={{ textAlign: 'left' }}>
                         <div style={{
-                          fontSize: '0.75rem', fontWeight: isActive ? 600 : 500,
+                          fontSize: '0.8125rem', fontWeight: isActive ? 600 : 500,
                           color: isActive ? '#f0f0f0' : isDone ? '#60a5fa' : '#c0c0c0',
                           whiteSpace: 'nowrap',
                         }}>{step.label}</div>
                         <div style={{
-                          fontSize: '0.5625rem', color: isActive ? '#8b8b8b' : '#7a7a8a',
+                          fontSize: '0.6875rem', color: isActive ? '#8b8b8b' : '#7a7a8a',
                           fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap',
                         }}>{step.desc}</div>
                       </div>
@@ -437,22 +437,22 @@ function IngestStep() {
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Ingest a Document</h2>
-        <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5 }}>
+        <p style={{ fontSize: '0.875rem', color: '#8b8b8b', lineHeight: 1.5 }}>
           Choose a sample document to load into the pipeline. This is your raw source — the text that will be chunked, embedded, and made searchable.
         </p>
       </div>
       <IngestionPanel />
       {state.rawText && (
         <div style={{ marginTop: '1.25rem', padding: '0.75rem 0.875rem', background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.15)', borderRadius: '0.5rem', fontFamily: "'JetBrains Mono', monospace" }}>
-          <div style={{ fontSize: '0.8125rem', color: '#4ade80', fontWeight: 600 }}>
+          <div style={{ fontSize: '0.875rem', color: '#4ade80', fontWeight: 600 }}>
             {state.sourceLabel || 'Document loaded'}
           </div>
           {state.documentSubtitle && (
-            <div style={{ fontSize: '0.6875rem', color: '#6b9e6b', marginTop: '0.125rem' }}>
+            <div style={{ fontSize: '0.75rem', color: '#6b9e6b', marginTop: '0.125rem' }}>
               {state.documentSubtitle}
             </div>
           )}
-          <div style={{ fontSize: '0.6875rem', color: '#4ade8088', marginTop: '0.375rem' }}>
+          <div style={{ fontSize: '0.75rem', color: '#4ade8088', marginTop: '0.375rem' }}>
             Ready to chunk — proceed to Chunking →
           </div>
         </div>
@@ -517,7 +517,7 @@ function ChunkingStep() {
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Chunking</h2>
-        <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5 }}>
+        <p style={{ fontSize: '0.875rem', color: '#8b8b8b', lineHeight: 1.5 }}>
           Split your document into retrievable segments. Chunk size and overlap control the trade-off between context richness and retrieval precision.
         </p>
       </div>
@@ -525,7 +525,7 @@ function ChunkingStep() {
       <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '1.5rem', alignItems: 'start' }}>
         {/* Controls */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'sticky', top: '5rem' }}>
-          <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#60a5fa', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600 }}>
+          <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#60a5fa', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600 }}>
             Configuration
           </div>
 
@@ -536,7 +536,7 @@ function ChunkingStep() {
                 <option key={key} value={key}>{STRATEGY_INFO[key].label}</option>
               ))}
             </select>
-            <p style={{ margin: '0.25rem 0 0', fontSize: '0.6875rem', color: '#636363', lineHeight: 1.4 }}>{strategyInfo?.description}</p>
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#636363', lineHeight: 1.4 }}>{strategyInfo?.description}</p>
           </div>
 
           <div>
@@ -559,9 +559,9 @@ function ChunkingStep() {
                 <div style={{ width: '28px', height: '16px', borderRadius: '8px', background: state.stripHtml ? '#3b82f6' : 'rgba(255,255,255,0.1)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: '2px', left: state.stripHtml ? '14px' : '2px', width: '12px', height: '12px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                 </div>
-                <span style={{ fontSize: '0.75rem', fontWeight: 500, color: state.stripHtml ? '#93c5fd' : '#f87171' }}>Strip HTML Tags</span>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: state.stripHtml ? '#93c5fd' : '#f87171' }}>Strip HTML Tags</span>
               </div>
-              <p style={{ fontSize: '0.6875rem', color: '#636363', marginTop: '0.25rem', lineHeight: 1.4 }}>
+              <p style={{ fontSize: '0.75rem', color: '#636363', marginTop: '0.25rem', lineHeight: 1.4 }}>
                 {state.stripHtml ? 'HTML tags removed. Chunks contain clean text.' : 'Raw HTML preserved in chunks.'}
               </p>
             </div>
@@ -570,7 +570,7 @@ function ChunkingStep() {
           {state.chunks.length === 0 && (
             <button onClick={handleChunk} style={{
               padding: '0.5rem 1.25rem', background: '#3b82f6', color: '#f0f0f0',
-              border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.8125rem',
+              border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem',
               boxShadow: '0 0 20px rgba(59,130,246,0.15)',
             }}>
               Split into Chunks
@@ -579,8 +579,8 @@ function ChunkingStep() {
 
           {state.chunks.length > 0 && (
             <div style={{ padding: '0.625rem', background: 'rgba(30,26,41,0.5)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '0.5rem' }}>
-              <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', letterSpacing: '0.05em', textTransform: 'uppercase' as const, marginBottom: '0.375rem' }}>Stats</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', fontSize: '0.75rem' }}>
+              <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', letterSpacing: '0.05em', textTransform: 'uppercase' as const, marginBottom: '0.375rem' }}>Stats</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', fontSize: '0.8125rem' }}>
                 <span style={{ color: '#8b8b8b' }}>Chunks:</span><span style={{ color: '#f0f0f0', fontFamily: "'JetBrains Mono', monospace" }}>{state.chunks.length}</span>
                 <span style={{ color: '#8b8b8b' }}>Avg size:</span><span style={{ color: '#f0f0f0', fontFamily: "'JetBrains Mono', monospace" }}>{Math.round(state.chunks.reduce((s, c) => s + c.text.length, 0) / state.chunks.length)} chars</span>
                 <span style={{ color: '#8b8b8b' }}>Avg tokens:</span><span style={{ color: '#f0f0f0', fontFamily: "'JetBrains Mono', monospace" }}>~{Math.round(state.chunks.reduce((s, c) => s + c.tokenEstimate, 0) / state.chunks.length)}</span>
@@ -595,12 +595,12 @@ function ChunkingStep() {
           {state.chunks.length > 0 && (
             <>
               <div>
-                <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', letterSpacing: '0.05em', textTransform: 'uppercase' as const, marginBottom: '0.5rem' }}>
+                <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', letterSpacing: '0.05em', textTransform: 'uppercase' as const, marginBottom: '0.5rem' }}>
                   Source Document
                 </div>
                 <div style={{
                   padding: '0.875rem', background: 'rgba(30,26,41,0.5)', border: '1px solid rgba(255,255,255,0.04)',
-                  borderRadius: '0.75rem', fontSize: '0.75rem', color: '#8b8b8b', lineHeight: 1.6,
+                  borderRadius: '0.75rem', fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.6,
                   maxHeight: '160px', overflow: 'auto', whiteSpace: 'pre-wrap', fontFamily: "'JetBrains Mono', monospace",
                 }}>
                   {state.rawText}
@@ -608,7 +608,7 @@ function ChunkingStep() {
               </div>
 
               <div>
-                <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', letterSpacing: '0.05em', textTransform: 'uppercase' as const, marginBottom: '0.5rem' }}>
+                <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', letterSpacing: '0.05em', textTransform: 'uppercase' as const, marginBottom: '0.5rem' }}>
                   Chunks ({state.chunks.length})
                 </div>
                 <div style={{ display: 'grid', gap: '0.5rem', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
@@ -622,11 +622,11 @@ function ChunkingStep() {
                           padding: '0.75rem',
                           background: hoveredChunk === i ? `${color}10` : `${color}05`,
                           border: `1px solid ${hoveredChunk === i ? `${color}40` : `${color}15`}`,
-                          borderRadius: '0.75rem', fontSize: '0.75rem', transition: 'all 0.15s',
+                          borderRadius: '0.75rem', fontSize: '0.8125rem', transition: 'all 0.15s',
                         }}>
                         <div style={{ fontWeight: 600, color, marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between' }}>
                           <span>Chunk {i + 1}</span>
-                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6875rem', opacity: 0.7 }}>~{chunk.tokenEstimate} tok</span>
+                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', opacity: 0.7 }}>~{chunk.tokenEstimate} tok</span>
                         </div>
                         <div style={{ color: '#b0b0b0', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{chunk.text}</div>
                       </div>
@@ -741,10 +741,10 @@ function EmbeddingStep() {
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Embedding</h2>
-        <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5, marginBottom: '0.625rem' }}>
+        <p style={{ fontSize: '0.875rem', color: '#8b8b8b', lineHeight: 1.5, marginBottom: '0.625rem' }}>
           Each chunk is converted into a vector — a list of numbers that captures its semantic meaning. Similar chunks will have similar vectors.
         </p>
-        <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5 }}>
+        <p style={{ fontSize: '0.875rem', color: '#8b8b8b', lineHeight: 1.5 }}>
           Computers can't search text by <em>meaning</em> — but they can do math on numbers. An embedding model converts each chunk into a list of numbers called a <strong style={{ color: '#c0c0c0' }}>vector</strong>. Similar chunks produce similar numbers. That's the foundation of semantic search.
         </p>
       </div>
@@ -759,15 +759,15 @@ function EmbeddingStep() {
               border: `1px solid ${selectedModel === i ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.06)'}`,
               borderRadius: '0.5rem', cursor: 'pointer', transition: 'all 0.15s',
             }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: selectedModel === i ? '#60a5fa' : '#c0c0c0' }}>{model.label}</div>
-            <div style={{ fontSize: '0.625rem', color: '#636363' }}>{model.desc} · {model.dims}d</div>
+            <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: selectedModel === i ? '#60a5fa' : '#c0c0c0' }}>{model.label}</div>
+            <div style={{ fontSize: '0.6875rem', color: '#636363' }}>{model.desc} · {model.dims}d</div>
           </button>
         ))}
         <button onClick={handleEmbed} disabled={state.isEmbedding || state.chunks.length === 0}
           style={{
             padding: '0.625rem 1.5rem', background: state.isEmbedding ? 'rgba(59,130,246,0.2)' : '#3b82f6',
             color: state.isEmbedding ? '#636363' : '#f0f0f0', border: 'none', borderRadius: '0.5rem',
-            cursor: state.isEmbedding ? 'wait' : 'pointer', fontWeight: 600, fontSize: '0.875rem',
+            cursor: state.isEmbedding ? 'wait' : 'pointer', fontWeight: 600, fontSize: '0.9375rem',
             boxShadow: state.isEmbedding ? 'none' : '0 0 20px rgba(59,130,246,0.15)',
           }}>
           {state.isEmbedding ? `Embedding... ${state.embeddingProgress}%` : hasEmbeddings ? 'Re-embed' : 'Embed All Chunks'}
@@ -775,7 +775,7 @@ function EmbeddingStep() {
       </div>
 
       {/* Model warning */}
-      <div style={{ padding: '0.625rem 0.875rem', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)', borderRadius: '0.5rem', marginBottom: '1.25rem', fontSize: '0.75rem', color: '#a08050', lineHeight: 1.5 }}>
+      <div style={{ padding: '0.625rem 0.875rem', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)', borderRadius: '0.5rem', marginBottom: '1.25rem', fontSize: '0.8125rem', color: '#a08050', lineHeight: 1.5 }}>
         <strong style={{ color: '#fbbf24' }}>⚠ Important:</strong> The model you embed with must be the same model you search with. Swap models between steps and every similarity score collapses to noise — the number spaces are incompatible.
       </div>
 
@@ -796,20 +796,20 @@ function EmbeddingStep() {
 
           {/* ── Section A: What does a vector look like? ── */}
           <div style={{ padding: '1.25rem', background: 'rgba(30,26,41,0.5)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '0.75rem' }}>
-            <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#60a5fa', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
+            <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#60a5fa', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
               What does a vector look like?
             </div>
-            <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.875rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
               Each chunk becomes a list of <strong style={{ color: '#c0c0c0' }}>{state.embeddedChunks[0].embedding.length} numbers</strong>. These numbers don't mean anything individually — together they encode where this chunk sits in meaning-space. Click a chunk pill to inspect its raw vector and shape.
             </p>
-            <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.875rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
               Notice that every chunk has a completely different bar shape. A chunk about indexing algorithms looks nothing like a chunk about pricing. That visual fingerprint <em>is</em> the embedding.
             </p>
             <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
               {state.embeddedChunks.map((_, i) => (
                 <button key={i} onClick={() => setInspectChunk(inspectChunk === i ? null : i)}
                   style={{
-                    padding: '0.25rem 0.625rem', fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace",
+                    padding: '0.25rem 0.625rem', fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace",
                     background: inspectChunk === i ? `${COLORS[i % COLORS.length]}20` : 'rgba(255,255,255,0.04)',
                     border: `1px solid ${inspectChunk === i ? COLORS[i % COLORS.length] : 'rgba(255,255,255,0.08)'}`,
                     borderRadius: '9999px', color: inspectChunk === i ? COLORS[i % COLORS.length] : '#8b8b8b',
@@ -821,18 +821,18 @@ function EmbeddingStep() {
             </div>
             {inspectChunk !== null && state.embeddedChunks[inspectChunk] && (
               <div>
-                <div style={{ padding: '0.625rem', background: `${COLORS[inspectChunk % COLORS.length]}08`, border: `1px solid ${COLORS[inspectChunk % COLORS.length]}20`, borderRadius: '0.5rem', fontSize: '0.75rem', color: '#b0b0b0', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                <div style={{ padding: '0.625rem', background: `${COLORS[inspectChunk % COLORS.length]}08`, border: `1px solid ${COLORS[inspectChunk % COLORS.length]}20`, borderRadius: '0.5rem', fontSize: '0.8125rem', color: '#b0b0b0', marginBottom: '0.75rem', lineHeight: 1.5 }}>
                   <span style={{ color: COLORS[inspectChunk % COLORS.length], fontWeight: 600 }}>Chunk {inspectChunk + 1}:</span> {state.embeddedChunks[inspectChunk].text.slice(0, 150)}{state.embeddedChunks[inspectChunk].text.length > 150 ? '...' : ''}
                 </div>
-                <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', marginBottom: '0.375rem' }}>
+                <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', marginBottom: '0.375rem' }}>
                   Raw vector ({state.embeddedChunks[inspectChunk].embedding.length} dimensions):
                 </div>
-                <div style={{ padding: '0.625rem', background: 'rgba(10,8,16,0.5)', borderRadius: '0.5rem', fontSize: '0.625rem', fontFamily: "'JetBrains Mono', monospace", color: '#8b8b8b', maxHeight: '80px', overflow: 'auto', lineHeight: 1.6, wordBreak: 'break-all' }}>
+                <div style={{ padding: '0.625rem', background: 'rgba(10,8,16,0.5)', borderRadius: '0.5rem', fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#8b8b8b', maxHeight: '80px', overflow: 'auto', lineHeight: 1.6, wordBreak: 'break-all' }}>
                   [{state.embeddedChunks[inspectChunk].embedding.slice(0, 30).map(v => v.toFixed(4)).join(', ')}
                   {state.embeddedChunks[inspectChunk].embedding.length > 30 ? `, ... +${state.embeddedChunks[inspectChunk].embedding.length - 30} more` : ''}]
                 </div>
                 <div style={{ marginTop: '0.75rem' }}>
-                  <div style={{ fontSize: '0.625rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', marginBottom: '0.375rem' }}>
+                  <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', marginBottom: '0.375rem' }}>
                     First 50 dimensions visualized (positive = up, negative = down):
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', height: '60px', gap: '1px', background: 'rgba(10,8,16,0.3)', borderRadius: '0.375rem', padding: '0 2px', overflow: 'hidden' }}>
@@ -848,7 +848,7 @@ function EmbeddingStep() {
                       );
                     })}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.5625rem', fontFamily: "'JetBrains Mono', monospace", color: '#4a4a4a', marginTop: '0.125rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#4a4a4a', marginTop: '0.125rem' }}>
                     <span>d0</span><span>d49</span>
                   </div>
                 </div>
@@ -859,13 +859,13 @@ function EmbeddingStep() {
           {/* ── Section B: Cosine similarity ── */}
           {state.embeddedChunks.length >= 2 && (
             <div style={{ padding: '1.25rem', background: 'rgba(30,26,41,0.5)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '0.75rem' }}>
-              <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#4ade80', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
+              <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#4ade80', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
                 How is similarity measured?
               </div>
-              <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.875rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
                 <strong style={{ color: '#c0c0c0' }}>Cosine similarity</strong> asks: <em>"do these two vectors point in roughly the same direction?"</em> Identical direction = 1.0, completely opposite = 0.0. It doesn't matter how long the vectors are — only the angle counts.
               </p>
-              <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.875rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
                 Try comparing two chunks on the same topic, then swap one for a chunk on a completely different topic. Watch the score and the bar chart change.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
@@ -892,24 +892,24 @@ function EmbeddingStep() {
                       <div style={{ height: '8px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
                         <div style={{ width: `${Math.max(comparisonScore * 100, 2)}%`, height: '100%', background: `linear-gradient(90deg, ${scoreColor(comparisonScore)}66, ${scoreColor(comparisonScore)})`, borderRadius: '4px', transition: 'width 0.3s' }} />
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem', fontSize: '0.5625rem', fontFamily: "'JetBrains Mono', monospace", color: '#4a4a4a' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem', fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#4a4a4a' }}>
                         <span>0.0 (unrelated)</span><span>0.5</span><span>1.0 (identical)</span>
                       </div>
                     </div>
                   </div>
                   <div style={{ padding: '0.75rem', background: 'rgba(10,8,16,0.5)', borderRadius: '0.5rem', marginBottom: '1rem' }}>
-                    <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', marginBottom: '0.5rem' }}>COSINE SIMILARITY FORMULA:</div>
-                    <div style={{ fontSize: '0.875rem', fontFamily: "'JetBrains Mono', monospace", color: '#c0c0c0', textAlign: 'center', lineHeight: 2 }}>
+                    <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', marginBottom: '0.5rem' }}>COSINE SIMILARITY FORMULA:</div>
+                    <div style={{ fontSize: '0.9375rem', fontFamily: "'JetBrains Mono', monospace", color: '#c0c0c0', textAlign: 'center', lineHeight: 2 }}>
                       sim(A, B) = <span style={{ color: '#3b82f6' }}>A · B</span> / (<span style={{ color: '#4ade80' }}>||A||</span> × <span style={{ color: '#4ade80' }}>||B||</span>)
                     </div>
-                    <div style={{ marginTop: '0.5rem', fontSize: '0.6875rem', color: '#636363', lineHeight: 1.5 }}>
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#636363', lineHeight: 1.5 }}>
                       <span style={{ color: '#3b82f6' }}>A · B</span> = dot product (multiply each pair of values, sum them up)<br/>
                       <span style={{ color: '#4ade80' }}>||A||</span> = magnitude (length of vector A)
                     </div>
                   </div>
                   {compareA !== compareB && (
                     <div>
-                      <div style={{ fontSize: '0.625rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', marginBottom: '0.375rem' }}>
+                      <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', marginBottom: '0.375rem' }}>
                         Dimension-by-dimension comparison (first 30):
                       </div>
                       <div style={{ display: 'flex', gap: '1px', height: '80px', background: 'rgba(10,8,16,0.3)', borderRadius: '0.375rem', padding: '2px', overflow: 'hidden' }}>
@@ -933,7 +933,7 @@ function EmbeddingStep() {
                           );
                         })}
                       </div>
-                      <div style={{ display: 'flex', gap: '1rem', marginTop: '0.375rem', fontSize: '0.625rem' }}>
+                      <div style={{ display: 'flex', gap: '1rem', marginTop: '0.375rem', fontSize: '0.6875rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '2px', background: COLORS[compareA % COLORS.length], opacity: 0.6 }} />
                           <span style={{ color: '#8b8b8b' }}>C{compareA + 1}</span>
@@ -955,25 +955,25 @@ function EmbeddingStep() {
 
           {/* ── Section C: Full similarity matrix ── */}
           <div style={{ padding: '1.25rem', background: 'rgba(30,26,41,0.5)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '0.75rem' }}>
-            <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#fbbf24', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
+            <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#fbbf24', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
               Similarity Matrix — All Chunks
             </div>
-            <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.875rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
               Every cell shows the cosine similarity between two chunks. <span style={{ color: '#4ade80' }}>Green = high</span>, <span style={{ color: '#fbbf24' }}>amber = medium</span>, <span style={{ color: '#f87171' }}>red = low</span>. The diagonal is always 1.0 — every chunk is identical to itself.
             </p>
-            <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.875rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
               Lots of green off the diagonal means your chunks are <strong style={{ color: '#c0c0c0' }}>redundant</strong> — retrieval will return near-duplicates. A mostly red matrix means distinct topics and precise retrieval. <strong style={{ color: '#c0c0c0' }}>Click any cell</strong> to load that pair into the comparison above.
             </p>
             <div style={{ overflow: 'auto' }}>
               <div style={{ display: 'inline-block' }}>
                 <div style={{ display: 'flex', paddingLeft: '2.5rem' }}>
                   {state.embeddedChunks.map((_, j) => (
-                    <div key={j} style={{ width: '2.5rem', textAlign: 'center', fontSize: '0.625rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', paddingBottom: '0.25rem' }}>C{j + 1}</div>
+                    <div key={j} style={{ width: '2.5rem', textAlign: 'center', fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', paddingBottom: '0.25rem' }}>C{j + 1}</div>
                   ))}
                 </div>
                 {simMatrix.map((row, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-                    <div style={{ width: '2.5rem', fontSize: '0.625rem', textAlign: 'right', paddingRight: '0.5rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363' }}>C{i + 1}</div>
+                    <div style={{ width: '2.5rem', fontSize: '0.6875rem', textAlign: 'right', paddingRight: '0.5rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363' }}>C{i + 1}</div>
                     {row.map((score, j) => {
                       const isDiag = i === j;
                       const isHov = hoveredCell?.i === i && hoveredCell?.j === j;
@@ -986,7 +986,7 @@ function EmbeddingStep() {
                             width: '2.5rem', height: '2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
                             background: isDiag ? 'rgba(59,130,246,0.1)' : `rgba(${Math.round((1 - score) * 100)}, ${Math.round(score * 200)}, 80, ${0.1 + score * 0.35})`,
                             border: isHov ? '1px solid rgba(59,130,246,0.5)' : '1px solid rgba(255,255,255,0.02)',
-                            fontSize: '0.5625rem', fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace",
                             color: score > 0.7 ? '#4ade80' : score > 0.4 ? '#fbbf24' : '#f87171',
                             cursor: isDiag ? 'default' : 'pointer',
                           }}
@@ -1000,11 +1000,11 @@ function EmbeddingStep() {
               </div>
             </div>
             {hoveredCell && hoveredCell.i !== hoveredCell.j && (
-              <div style={{ marginTop: '0.75rem', padding: '0.625rem', background: 'rgba(22,19,30,0.8)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", color: '#60a5fa', fontSize: '0.6875rem', marginBottom: '0.25rem' }}>
+              <div style={{ marginTop: '0.75rem', padding: '0.625rem', background: 'rgba(22,19,30,0.8)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '0.5rem', fontSize: '0.8125rem' }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", color: '#60a5fa', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                   C{hoveredCell.i + 1} ↔ C{hoveredCell.j + 1}: {simMatrix[hoveredCell.i][hoveredCell.j].toFixed(4)}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', color: '#8b8b8b', fontSize: '0.6875rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', color: '#8b8b8b', fontSize: '0.75rem' }}>
                   <div>{state.embeddedChunks[hoveredCell.i].text.slice(0, 80)}...</div>
                   <div>{state.embeddedChunks[hoveredCell.j].text.slice(0, 80)}...</div>
                 </div>
@@ -1015,13 +1015,13 @@ function EmbeddingStep() {
           {/* ── Section D: 2D Map ── */}
           {points2D.length > 0 && (
             <div style={{ padding: '1.25rem', background: 'rgba(30,26,41,0.5)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '0.75rem' }}>
-              <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#3b82f6', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
+              <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#3b82f6', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
                 2D Map — Similar chunks cluster together
               </div>
-              <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.875rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
                 Your vectors are <strong style={{ color: '#c0c0c0' }}>{state.embeddedChunks[0].embedding.length} dimensions</strong> — impossible to visualise directly. <strong style={{ color: '#c0c0c0' }}>PCA</strong> (Principal Component Analysis) compresses them to 2D while preserving as much structure as possible. Chunks about similar topics appear close together.
               </p>
-              <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.875rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
                 This is how retrieval works: when you search in the next step, your query gets embedded and lands as a point on this map. The closest chunks are your top results.
               </p>
               <div style={{ position: 'relative', width: '100%', height: '350px', background: 'rgba(10,8,16,0.5)', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
@@ -1035,13 +1035,13 @@ function EmbeddingStep() {
                   <div key={i} style={{ position: 'absolute', left: `${10 + p.x * 80}%`, top: `${10 + p.y * 80}%`, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
                     <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: COLORS[i % COLORS.length], border: '2px solid rgba(22,19,30,0.8)', boxShadow: `0 0 8px ${COLORS[i % COLORS.length]}44` }}
                       title={`C${i + 1}: ${state.embeddedChunks[i].text.slice(0, 60)}...`} />
-                    <span style={{ fontSize: '0.5625rem', fontFamily: "'JetBrains Mono', monospace", color: COLORS[i % COLORS.length], fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>C{i + 1}</span>
+                    <span style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: COLORS[i % COLORS.length], fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>C{i + 1}</span>
                   </div>
                 ))}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem' }}>
                 {state.embeddedChunks.map((c, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.625rem', color: '#8b8b8b', maxWidth: '240px' }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', color: '#8b8b8b', maxWidth: '240px' }}>
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>C{i + 1}: {c.text.slice(0, 40)}...</span>
                   </div>
@@ -1107,7 +1107,7 @@ function SearchStep() {
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Search</h2>
-        <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5 }}>
+        <p style={{ fontSize: '0.875rem', color: '#8b8b8b', lineHeight: 1.5 }}>
           Ask a question. Your query is converted to a vector and compared against all chunk vectors to find the most relevant ones.
         </p>
       </div>
@@ -1115,7 +1115,7 @@ function SearchStep() {
       <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '1.5rem', alignItems: 'start' }}>
         {/* Controls */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'sticky', top: '5rem' }}>
-          <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#60a5fa', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600 }}>
+          <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#60a5fa', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600 }}>
             Search Configuration
           </div>
 
@@ -1124,7 +1124,7 @@ function SearchStep() {
             <div style={{ display: 'flex', gap: '0.25rem' }}>
               {(['semantic', 'hybrid'] as const).map(st => (
                 <button key={st} onClick={() => dispatch({ type: 'SET_SEARCH_TYPE', payload: st })} style={{
-                  flex: 1, padding: '0.375rem', fontSize: '0.75rem',
+                  flex: 1, padding: '0.375rem', fontSize: '0.8125rem',
                   background: state.searchType === st ? 'rgba(59,130,246,0.1)' : 'transparent',
                   border: `1px solid ${state.searchType === st ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.06)'}`,
                   borderRadius: '0.375rem', color: state.searchType === st ? '#60a5fa' : '#636363', cursor: 'pointer',
@@ -1133,7 +1133,7 @@ function SearchStep() {
                 </button>
               ))}
             </div>
-            <p style={{ margin: '0.375rem 0 0', fontSize: '0.6875rem', color: '#636363', lineHeight: 1.4 }}>
+            <p style={{ margin: '0.375rem 0 0', fontSize: '0.75rem', color: '#636363', lineHeight: 1.4 }}>
               {state.searchType === 'semantic' ? 'Pure vector similarity — finds semantically related chunks.' : 'Blends vector similarity (60%) with keyword matching (40%).'}
             </p>
           </div>
@@ -1143,7 +1143,7 @@ function SearchStep() {
             <input type="range" min={1} max={10} value={state.topK}
               onChange={e => dispatch({ type: 'SET_TOP_K', payload: Number(e.target.value) })}
               style={{ width: '100%', accentColor: '#3b82f6' }} />
-            <p style={{ margin: '0.25rem 0 0', fontSize: '0.6875rem', color: '#636363' }}>Return the top {state.topK} most relevant chunks.</p>
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#636363' }}>Return the top {state.topK} most relevant chunks.</p>
           </div>
         </div>
 
@@ -1161,14 +1161,14 @@ function SearchStep() {
                 style={{
                   flex: 1, padding: '0.625rem 0.875rem',
                   background: 'rgba(22,19,30,0.6)', border: '1px solid rgba(59,130,246,0.2)',
-                  borderRadius: '0.5rem', color: '#e0e0e0', fontSize: '0.875rem',
+                  borderRadius: '0.5rem', color: '#e0e0e0', fontSize: '0.9375rem',
                 }}
               />
               <button onClick={handleSearch} disabled={state.isSearching || !state.query.trim()}
                 style={{
                   padding: '0.625rem 1.25rem', background: state.isSearching ? 'rgba(59,130,246,0.2)' : '#3b82f6',
                   color: state.isSearching ? '#636363' : '#f0f0f0', border: 'none', borderRadius: '0.5rem',
-                  cursor: state.isSearching ? 'wait' : 'pointer', fontWeight: 600, fontSize: '0.875rem',
+                  cursor: state.isSearching ? 'wait' : 'pointer', fontWeight: 600, fontSize: '0.9375rem',
                   whiteSpace: 'nowrap', boxShadow: state.isSearching ? 'none' : '0 0 20px rgba(59,130,246,0.15)',
                 }}>
                 {state.isSearching ? 'Searching…' : 'Search'}
@@ -1178,7 +1178,7 @@ function SearchStep() {
 
           {state.results.length > 0 && (
             <div>
-              <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', letterSpacing: '0.05em', textTransform: 'uppercase' as const, marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', letterSpacing: '0.05em', textTransform: 'uppercase' as const, marginBottom: '0.5rem' }}>
                 Top {state.results.length} Results
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -1189,26 +1189,26 @@ function SearchStep() {
                     borderRadius: '0.75rem',
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS[i % COLORS.length] }}>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: COLORS[i % COLORS.length] }}>
                         #{i + 1} Chunk {state.embeddedChunks.indexOf(r.chunk) + 1}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: scoreColor(r.score), fontWeight: 700 }}>
+                        <span style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: scoreColor(r.score), fontWeight: 700 }}>
                           {r.score.toFixed(4)}
                         </span>
-                        <span style={{ fontSize: '0.5625rem', fontFamily: "'JetBrains Mono', monospace", color: '#4b5563', background: 'rgba(255,255,255,0.04)', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
+                        <span style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#4b5563', background: 'rgba(255,255,255,0.04)', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
                           {r.matchType || 'semantic'}
                         </span>
                       </div>
                     </div>
-                    <div style={{ fontSize: '0.8125rem', color: '#c0c0c0', lineHeight: 1.6 }}>
+                    <div style={{ fontSize: '0.875rem', color: '#c0c0c0', lineHeight: 1.6 }}>
                       {r.chunk.text}
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.1)', borderRadius: '0.5rem', fontSize: '0.75rem', color: '#4ade80', fontFamily: "'JetBrains Mono', monospace" }}>
+              <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.1)', borderRadius: '0.5rem', fontSize: '0.8125rem', color: '#4ade80', fontFamily: "'JetBrains Mono', monospace" }}>
                 {state.results.length} chunks retrieved — proceed to Generate to compose an answer →
               </div>
             </div>
@@ -1238,7 +1238,7 @@ function GenerateStep() {
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Generate</h2>
-        <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5 }}>
+        <p style={{ fontSize: '0.875rem', color: '#8b8b8b', lineHeight: 1.5 }}>
           Assemble retrieved chunks into a prompt and generate a grounded answer. The assembled prompt shows exactly what the LLM sees — system instructions, retrieved context, and your question.
         </p>
       </div>

@@ -250,21 +250,21 @@ export default function IngestionPanel() {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
                 <span style={{
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6875rem', fontWeight: 700,
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', fontWeight: 700,
                   letterSpacing: '0.1em', textTransform: 'uppercase' as const,
                   color: sample.typeColor, background: `${sample.typeColor}15`,
                   padding: '1px 6px', borderRadius: '9999px', border: `1px solid ${sample.typeColor}30`,
                 }}>
                   {sample.type}
                 </span>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6875rem', color: '#636363' }}>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', color: '#636363' }}>
                   {sample.wordCount} words
                 </span>
               </div>
-              <div style={{ fontSize: '0.875rem', fontWeight: 600, color: isSelected ? '#e0e0e0' : '#c0c0c0', marginBottom: '0.25rem' }}>
+              <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: isSelected ? '#e0e0e0' : '#c0c0c0', marginBottom: '0.25rem' }}>
                 {sample.label}
               </div>
-              <div style={{ fontSize: '0.6875rem', color: '#636363', lineHeight: 1.4, marginBottom: '0.375rem' }}>
+              <div style={{ fontSize: '0.75rem', color: '#636363', lineHeight: 1.4, marginBottom: '0.375rem' }}>
                 {sample.description}
               </div>
               <a
@@ -273,7 +273,7 @@ export default function IngestionPanel() {
                 rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
                 style={{
-                  fontSize: '0.6875rem', color: sample.typeColor, textDecoration: 'none',
+                  fontSize: '0.75rem', color: sample.typeColor, textDecoration: 'none',
                   fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.03em',
                   display: 'inline-flex', alignItems: 'center', gap: '0.25rem', opacity: 0.8,
                 }}
@@ -289,7 +289,7 @@ export default function IngestionPanel() {
       {(state.rawHtml || state.rawText) && (
         <div>
           <div style={{
-            fontSize: '0.6875rem', fontWeight: 600, marginBottom: '0.375rem',
+            fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.375rem',
             color: state.rawHtml ? '#93c5fd' : '#4ade80',
             fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em',
             textTransform: 'uppercase' as const,
@@ -299,7 +299,7 @@ export default function IngestionPanel() {
           <div style={{
             padding: '0.75rem', maxHeight: '200px', overflow: 'auto',
             background: 'rgba(13,17,23,0.8)', border: `1px solid ${state.rawHtml ? 'rgba(147,197,253,0.15)' : 'rgba(74,222,128,0.1)'}`,
-            borderRadius: '0.75rem', fontSize: '0.75rem', color: '#8b8b8b',
+            borderRadius: '0.75rem', fontSize: '0.8125rem', color: '#8b8b8b',
             fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.5, whiteSpace: 'pre-wrap',
           }}>
             {state.rawHtml || state.rawText}
