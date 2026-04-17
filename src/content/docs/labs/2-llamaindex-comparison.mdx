@@ -1,0 +1,314 @@
+---
+title: "Lab 2: LlamaIndex Comparison"
+description: "Build the same RAG pipeline with LlamaIndex and see how it compares to LangChain — different API, same result."
+---
+
+<div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; background: rgba(74,222,128,0.05); border: 1px solid rgba(74,222,128,0.15); border-radius: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4ade80; background: rgba(74,222,128,0.1); padding: 0.125rem 0.5rem; border-radius: 9999px;">HANDS-ON LAB</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">~25 minutes</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">Beginner-friendly</span>
+  <span style="font-size: 0.8125rem; color: #b87dff;">Builder badge</span>
+</div>
+
+In Lab 1 you built a RAG pipeline with LangChain. Now you build the exact same thing with LlamaIndex. Same input, same output, different framework.
+
+Why bother? Because these are the two most popular RAG frameworks, and you will encounter both in the wild. Understanding how they think differently about the same problem makes you a better engineer — not just a better copy-paster.
+
+---
+
+## What LlamaIndex Does Differently
+
+LangChain and LlamaIndex solve the same problem, but they come at it from different angles.
+
+**LangChain thinks in chains.** You pick components (a loader, a splitter, an embedder, a retriever, an LLM) and wire them together step by step. You control every connection. This gives you maximum flexibility, but you write more glue code.
+
+**LlamaIndex thinks in indexes.** You point it at your data, and it builds a searchable index. Querying that index is one function call. LlamaIndex handles the chunking, embedding, and retrieval internally. You can customize each step, but the defaults work well out of the box.
+
+The short version: LangChain is a toolkit. LlamaIndex is an engine. Both get you to the same destination.
+
+---
+
+## Install Dependencies
+
+```python
+pip install llama-index llama-index-embeddings-huggingface llama-index-vector-stores-chroma chromadb
+```
+
+- **llama-index** — The core framework.
+- **llama-index-embeddings-huggingface** — Lets you use free, local embedding models.
+- **llama-index-vector-stores-chroma** — Connects LlamaIndex to ChromaDB.
+- **chromadb** — Same vector database from Lab 1, so you can compare apples to apples.
+
+---
+
+## Side-by-Side: LangChain vs LlamaIndex
+
+Let us walk through every step of the pipeline and see both frameworks do the same thing.
+
+### Loading a Document
+
+**LangChain:**
+```python
+from langchain_community.document_loaders import TextLoader
+
+loader = TextLoader("notes.txt")
+documents = loader.load()
+```
+
+**LlamaIndex:**
+```python
+from llama_index.core import SimpleDirectoryReader
+
+# Reads all files in a directory, or specify a single file
+documents = SimpleDirectoryReader(
+    input_files=["notes.txt"]
+).load_data()
+```
+
+**Difference:** LangChain has specific loaders for each file type (`TextLoader`, `PyPDFLoader`, etc.). LlamaIndex's `SimpleDirectoryReader` auto-detects file types. Drop a folder of mixed PDFs, text files, and markdown, and it handles them all.
+
+---
+
+### Chunking
+
+**LangChain:**
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=50
+)
+chunks = splitter.split_documents(documents)
+```
+
+**LlamaIndex:**
+```python
+from llama_index.core.node_parser import SentenceSplitter
+
+splitter = SentenceSplitter(
+    chunk_size=500,
+    chunk_overlap=50
+)
+nodes = splitter.get_nodes_from_documents(documents)
+```
+
+**Difference:** LangChain calls them "chunks" or "documents." LlamaIndex calls them "nodes." A node is a chunk with extra features — it knows about its parent document and its relationship to other nodes. This matters when you build more advanced pipelines later.
+
+In practice, both produce the same result here: your text split into overlapping pieces.
+
+---
+
+### Embedding and Storing
+
+**LangChain:**
+```python
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+
+embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+vectorstore = Chroma.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    persist_directory="./langchain_store"
+)
+```
+
+**LlamaIndex:**
+```python
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index.core import StorageContext, VectorStoreIndex
+import chromadb
+
+# Set up ChromaDB
+chroma_client = chromadb.PersistentClient(path="./llamaindex_store")
+chroma_collection = chroma_client.get_or_create_collection("my_docs")
+
+# Connect LlamaIndex to ChromaDB
+vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
+# Set up the embedding model
+embed_model = HuggingFaceEmbedding(model_name="all-MiniLM-L6-v2")
+
+# Build the index (embeds and stores automatically)
+index = VectorStoreIndex(
+    nodes,
+    storage_context=storage_context,
+    embed_model=embed_model
+)
+```
+
+**Difference:** This is where the two frameworks diverge the most. LangChain gives you a vector store object directly. LlamaIndex wraps it in an "index" — a higher-level abstraction that manages storage, embedding, and retrieval together.
+
+LlamaIndex's setup is more verbose here, but the index object you get back is more powerful. It handles caching, persistence, and query optimization internally.
+
+---
+
+### Querying
+
+**LangChain:**
+```python
+results = vectorstore.similarity_search("What is the main topic?", k=3)
+
+for doc in results:
+    print(doc.page_content)
+```
+
+**LlamaIndex:**
+```python
+query_engine = index.as_query_engine(similarity_top_k=3)
+response = query_engine.query("What is the main topic?")
+
+print(response)
+```
+
+**Difference:** This is where LlamaIndex shines. One call to `query()` does retrieval *and* generation. It finds the relevant nodes, constructs the prompt, calls the LLM, and returns a formatted answer — all in one line.
+
+With LangChain, you need to build the `RetrievalQA` chain yourself (as you did in Lab 1). More control, more code.
+
+If you just want the raw retrieved chunks without generation in LlamaIndex:
+
+```python
+retriever = index.as_retriever(similarity_top_k=3)
+nodes = retriever.retrieve("What is the main topic?")
+
+for node in nodes:
+    print(f"Score: {node.score:.4f}")
+    print(f"Text: {node.text[:200]}")
+    print()
+```
+
+---
+
+### Full RAG with Generation
+
+**LangChain (from Lab 1):**
+```python
+from langchain.chains import RetrievalQA
+from langchain.prompts import PromptTemplate
+from langchain_community.llms import HuggingFacePipeline
+from transformers import pipeline
+
+pipe = pipeline("text2text-generation", model="google/flan-t5-base", max_new_tokens=256)
+llm = HuggingFacePipeline(pipeline=pipe)
+
+prompt_template = PromptTemplate(
+    input_variables=["context", "question"],
+    template="""Use the following context to answer the question.
+If you don't know the answer, say "I don't have enough information."
+
+Context: {context}
+Question: {question}
+Answer:"""
+)
+
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",
+    retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
+    chain_type_kwargs={"prompt": prompt_template},
+    return_source_documents=True
+)
+
+response = qa_chain.invoke({"query": "What is the main topic?"})
+print(response["result"])
+```
+
+**LlamaIndex:**
+```python
+from llama_index.core import Settings
+from llama_index.core.llms import CustomLLM, LLMMetadata, CompletionResponse
+from transformers import pipeline as hf_pipeline
+
+
+class LocalLLM(CustomLLM):
+    """Wrapper to use a local Hugging Face model with LlamaIndex."""
+
+    pipe: object = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    @property
+    def metadata(self) -> LLMMetadata:
+        return LLMMetadata(model_name="flan-t5-base")
+
+    def complete(self, prompt: str, **kwargs) -> CompletionResponse:
+        output = self.pipe(prompt, max_new_tokens=256)[0]["generated_text"]
+        return CompletionResponse(text=output)
+
+    def stream_complete(self, prompt: str, **kwargs):
+        raise NotImplementedError("Streaming not supported")
+
+
+pipe = hf_pipeline("text2text-generation", model="google/flan-t5-base")
+llm = LocalLLM(pipe=pipe)
+
+Settings.llm = llm
+Settings.embed_model = embed_model
+
+query_engine = index.as_query_engine(similarity_top_k=3)
+response = query_engine.query("What is the main topic?")
+
+print(response)
+print("\nSources:")
+for node in response.source_nodes:
+    print(f"  - {node.text[:100]}...")
+```
+
+**Difference:** LlamaIndex's query engine handles prompt construction and source tracking automatically. LangChain makes you build the prompt template and chain yourself. Both get the same result.
+
+---
+
+## When to Choose Which
+
+### Choose LangChain when:
+- You need **fine-grained control** over every step of the pipeline
+- You are building something **unusual** that does not fit standard RAG patterns
+- You want to **mix and match** components from different providers easily
+- You need **agents** that use RAG as one tool among many
+- You want the **larger ecosystem** — LangChain has more integrations
+
+### Choose LlamaIndex when:
+- You want to **get a working pipeline fast** with minimal code
+- Your use case is **document Q&A** and you do not need exotic customization
+- You want **built-in evaluation** tools (LlamaIndex has them natively)
+- You are building **multi-document** systems where relationships between documents matter
+- You value **sensible defaults** over manual configuration
+
+### Choose neither when:
+- You are building a simple proof of concept — raw ChromaDB + a few lines of code may be all you need
+- You are an experienced ML engineer who wants no abstraction overhead
+
+---
+
+## Comparison Table
+
+| Feature | LangChain | LlamaIndex |
+|---|---|---|
+| **Philosophy** | Toolkit — assemble your own chain | Engine — give it data, get answers |
+| **API style** | Explicit, step-by-step | High-level, convention-over-configuration |
+| **Chunking** | Manual (you pick the splitter) | Built-in node parsers with defaults |
+| **Retrieval** | You build the retriever | Built into the query engine |
+| **Generation** | You build the chain | One-line query |
+| **Flexibility** | Very high — swap any component | High, but opinionated defaults |
+| **Learning curve** | Steeper — more concepts to learn | Gentler — works out of the box |
+| **Abstraction level** | Low to medium | Medium to high |
+| **Best for** | Custom pipelines, agents | Document Q&A, fast prototyping |
+| **Community size** | Larger | Slightly smaller but growing fast |
+| **Evaluation tools** | Via third-party (RAGAS, etc.) | Built-in evaluation module |
+
+---
+
+## Key Takeaway
+
+Neither framework is "better." They are different tools for different situations. The best engineers know both and pick the right one for the job.
+
+The concepts underneath — chunking, embedding, vector search, prompt engineering — are the same regardless of framework. That is why this course teaches the concepts first and the frameworks second. Frameworks change. The fundamentals do not.
+
+---
+
+**Next up:** [Lab 3: Add a Re-ranker](/labs/3-add-a-reranker/) — Take your retrieval quality to the next level by adding a cross-encoder re-ranker.

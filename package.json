@@ -1,0 +1,37 @@
+{
+  "name": "learnrag",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/react": "^5.0.3",
+    "@astrojs/starlight": "^0.38.2",
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@huggingface/transformers": "^4.0.1",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/d3": "^7.4.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "astro": "^6.1.4",
+    "d3": "^7.9.0",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.7.0",
+    "mermaid": "^11.14.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "sharp": "^0.34.2",
+    "tailwindcss": "^4.2.2"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.8",
+    "rehype-external-links": "^3.0.0",
+    "typescript": "^5.9.3"
+  }
+}

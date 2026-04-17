@@ -1,0 +1,252 @@
+---
+title: "Data Ingestion & Chunking"
+description: "Learn why documents need to be split into chunks, the four main chunking strategies, and how to choose the right chunk size for your RAG system."
+---
+
+import ChapterProgress from '../../../components/react/ChapterProgress';
+import LiveTextSplitter from '../../../components/react/LiveTextSplitter';
+import MermaidDiagram from '../../../components/react/MermaidDiagram';
+import GlossaryTooltip from '../../../components/react/GlossaryTooltip';
+import QuickCheck from '../../../components/react/QuickCheck';
+import Callout from '../../../components/react/Callout';
+import FeedbackWidget from '../../../components/react/FeedbackWidget';
+
+<ChapterProgress client:load chapterNumber={2} badge="explorer" readTime={15} />
+
+> *You can't feed a library into an AI all at once. Chunking is how you cut it into pieces the AI can actually use.*
+
+**After this chapter, you'll be able to:** Split any document into well-sized chunks and understand the tradeoffs of each strategy.
+
+---
+
+## Why Can't You Just Paste the Whole Document?
+
+Every LLM has a <GlossaryTooltip client:load term="context window">context window</GlossaryTooltip> — the maximum amount of text it can process at once. Think of it as the AI's desk: it can only look at so many pages at the same time.
+
+Even models with large context windows (100k+ <GlossaryTooltip client:load term="token">tokens</GlossaryTooltip>) have problems with very long inputs:
+
+- **Cost** — you pay per token. Sending an entire book for every question is expensive.
+- **Noise** — the more irrelevant text you include, the worse the answer gets. The AI gets distracted by content that isn't related to the question.
+- **The "lost in the middle" problem** — research shows that LLMs pay less attention to information in the middle of long contexts. [src: liu2023lost]
+
+The solution: split your documents into smaller, self-contained pieces called <GlossaryTooltip client:load term="chunk">chunks</GlossaryTooltip>. Then, at query time, only send the relevant chunks — not the entire document.
+
+<Callout type="plain-english">Chunking is slicing a big document into small, self-contained pieces so your AI only reads what is relevant to the question.</Callout>
+
+---
+
+## What Makes a Good Chunk?
+
+A good chunk has two properties:
+
+1. **Self-contained** — it makes sense on its own, without needing the surrounding text
+2. **Focused** — it's about one idea, so it can be accurately matched to a relevant question
+
+A bad chunk is either too small (a sentence fragment with no context) or too large (three different topics crammed together).
+
+---
+
+## The Four Chunking Strategies
+
+### 1. Fixed-Size Chunking
+
+The simplest approach: cut every N characters, regardless of content.
+
+**How it works:** Set a chunk size (e.g., 500 characters). Split the text at every 500-character mark.
+
+**Pros:**
+
+- ✅ Fastest setup
+- ✅ Predictable chunk count
+- ✅ Easy to debug
+
+**Cons:**
+
+- ⚠️ Can cut sentences in half
+- ⚠️ Splits ideas mid-thought
+- ⚠️ Ignores semantic boundaries
+
+### 2. Sentence-Based Chunking
+
+Split at sentence boundaries instead of arbitrary positions.
+
+**How it works:** Group sentences together until you hit the size limit. Start a new chunk at the next sentence.
+
+**Pros:**
+
+- ✅ Preserves sentence boundaries
+- ✅ More natural chunk flow
+
+**Cons:**
+
+- ⚠️ Chunk sizes are less uniform
+- ⚠️ Long sentences can create oversized chunks
+
+### 3. Sliding Window (Overlap)
+
+The key insight: when you cut between two chunks, the idea at the boundary gets split. <GlossaryTooltip client:load term="overlap">Overlap</GlossaryTooltip> fixes this by sharing content between adjacent chunks.
+
+**How it works:** Same as fixed-size, but each chunk starts N characters before the previous one ended. Those N characters appear in both chunks.
+
+**Pros:**
+
+- ✅ Reduces boundary information loss
+- ✅ Strong default for production systems [src: langchain_docs]
+
+**Cons:**
+
+- ⚠️ Increases chunk count and embedding cost
+- ⚠️ Adds some redundancy
+
+### 4. Semantic Chunking
+
+The smartest (and hardest) approach: split where the *topic* changes.
+
+**How it works:** Use embeddings to measure how similar adjacent sentences are. When similarity drops sharply, that's a topic boundary — split there.
+
+**Pros:**
+
+- ✅ Aligns chunks to real topic boundaries
+- ✅ Highest retrieval quality in many datasets
+
+**Cons:**
+
+- ⚠️ Slower ingestion
+- ⚠️ More implementation complexity
+- ⚠️ Requires embedding-powered splitting
+
+<MermaidDiagram client:visible chart={`flowchart LR
+    D[Full Document] --> F{Strategy?}
+    F --> |Fixed| C1["Chunk 1<br/>500 chars"]
+    F --> |Sentence| C2["Chunk 1<br/>3 sentences"]
+    F --> |Sliding| C3["Chunk 1<br/>500 chars + 50 overlap"]
+    F --> |Semantic| C4["Chunk 1<br/>Topic A"]
+    C1 --> C1b["Chunk 2<br/>500 chars"]
+    C2 --> C2b["Chunk 2<br/>4 sentences"]
+    C3 --> C3b["Chunk 2<br/>500 chars + 50 overlap"]
+    C4 --> C4b["Chunk 2<br/>Topic B"]
+    style D fill:#3B82F6,color:#fff
+    style F fill:#F59E0B,color:#000`}
+  caption="Four ways to split the same document. Each creates different chunks."
+/>
+
+---
+
+## Chunk Size: The Goldilocks Problem
+
+- **Too small** (< 100 chars): Chunks lack context. "The answer is 42" means nothing without the question.
+- **Too large** (> 2000 chars): Chunks contain multiple topics. Searching for "refund policy" returns a chunk that's 80% about shipping.
+- **Just right** (200–800 chars): Chunks are self-contained and focused. A good rule of thumb is 200-500 tokens. [src: langchain_docs]
+
+The overlap should typically be 10–20% of the chunk size. So if your chunks are 500 characters, use 50-100 characters of overlap.
+
+<Callout type="warning">Choosing a chunk size that is too small is the most common beginner mistake. If your chunks are under 100 characters, retrieval quality drops sharply because each chunk lacks enough context.</Callout>
+
+---
+
+## Try It Yourself
+
+Paste any text below and experiment with different strategies and sizes. Watch how the chunks change.
+
+<LiveTextSplitter client:visible />
+
+---
+
+## Which Strategy Should You Use?
+
+Here's a practical decision framework based on what most production teams actually use:
+
+| Situation | Recommended Strategy |
+|---|---|
+| Getting started, need something working today | Fixed-size with overlap |
+| Your docs are well-structured prose (articles, reports) | Sentence-based |
+| Your docs have mixed content (tables, lists, narrative) | Sliding window with overlap |
+| You have time to invest and need maximum retrieval quality | Semantic chunking |
+| Code files or structured data | Fixed-size by logical unit (function, class) |
+
+**The practical default for 90% of production systems:** sliding window chunking with 512 tokens and 10–20% overlap. It's fast, predictable, and good enough unless you have specific reasons to do otherwise. [src: langchain_docs]
+
+---
+
+## Chunk Size in Practice: Real Numbers
+
+Here are the numbers that actually work in production, not theoretical optima:
+
+| Use Case | Chunk Size | Overlap | Reasoning |
+|---|---|---|---|
+| Dense technical docs (API reference) | 256–400 tokens | 10% | Each section is short and specific |
+| Long-form articles and reports | 500–800 tokens | 15% | Need context around each topic |
+| Conversational transcripts | 300–500 tokens | 20% | Speaker turns need surrounding context |
+| Legal or compliance documents | 400–600 tokens | 20% | Claims span multiple sentences |
+| Code files | By function/class | 0% | Logical units, not arbitrary splits |
+
+Note: "tokens" ≠ "characters". On average, 1 token ≈ 4 characters in English. A 512-token chunk is roughly 2,000 characters or 300–350 words.
+
+<Callout type="tip">When in doubt, start with 512 tokens and 50-token overlap. Run your actual queries against it. If you get irrelevant results, try smaller chunks. If chunks lack context, try larger ones. Tune on real data, not theory.</Callout>
+
+---
+
+## Metadata: The Hidden Superpower
+
+When you create chunks, you should attach **metadata** — extra information like:
+
+- **Source filename** — which document this chunk came from
+- **Page number** — where in the document
+- **Section title** — which heading it falls under
+- **Creation date** — when the source was written
+
+This metadata is critical later. When your RAG system retrieves a chunk, metadata lets you cite the source: *"According to enterprise_terms_v4.md, Section 7.2..."* Without metadata, you have a chunk with no provenance — and no way to tell the user where the information came from.
+
+---
+
+## What You Just Built
+
+In this chapter, you learned how to take raw text and turn it into searchable pieces. In the Playground, you can now:
+
+1. Upload or paste a document
+2. Choose a chunking strategy
+3. Adjust size and overlap
+4. See your chunks ready for the next step
+
+**Next up:** those chunks are just text. To search them by *meaning* (not just keywords), we need to convert them into numbers. That's what embeddings do.
+
+---
+
+## Quick Check
+
+<QuickCheck client:visible chapterId="2-chunking" questions={[
+  {
+    question: "Why is overlap used in sliding window chunking?",
+    options: [
+      "To make the chunks smaller",
+      "To reduce the number of chunks",
+      "To prevent ideas from being split at chunk boundaries",
+      "To speed up the embedding process"
+    ],
+    correct: 2,
+    explanation: "Overlap ensures that content at the boundary between two chunks appears in both, so no idea gets completely cut in half. This is why sliding window is the most popular strategy in production."
+  },
+  {
+    question: "What happens when chunks are too small?",
+    options: [
+      "They use too much storage",
+      "They lack enough context to be meaningful on their own",
+      "They take longer to embed",
+      "They cause the AI to hallucinate more"
+    ],
+    correct: 1,
+    explanation: "Very small chunks (like a single sentence fragment) don't have enough context to be useful. A chunk saying 'The answer is 42' is meaningless without knowing what question it answers."
+  }
+]} />
+
+---
+
+<FeedbackWidget client:visible chapterId="2-chunking" />
+
+---
+
+**Sources:**
+
+- [LangChain chunking documentation](https://python.langchain.com/docs/) — TextSplitter reference
+- [LlamaIndex node parsers documentation](https://docs.llamaindex.ai/)
+- Liu et al. (2023) — ["Lost in the Middle: How Language Models Use Long Contexts"](https://arxiv.org/abs/2307.03172)

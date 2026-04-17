@@ -1,0 +1,232 @@
+---
+title: "Vector Databases"
+description: "Learn what vector databases are, how HNSW indexing works, and choose the right database for your RAG project with an interactive decision tool."
+---
+
+import ChapterProgress from '../../../components/react/ChapterProgress';
+import DatabasePicker from '../../../components/react/DatabasePicker';
+import MermaidDiagram from '../../../components/react/MermaidDiagram';
+import GlossaryTooltip from '../../../components/react/GlossaryTooltip';
+import QuickCheck from '../../../components/react/QuickCheck';
+import Callout from '../../../components/react/Callout';
+import FeedbackWidget from '../../../components/react/FeedbackWidget';
+
+<ChapterProgress client:load chapterNumber={4} badge="builder" readTime={14} />
+
+## A database built for "what's most similar?"
+
+> *"A vector database is just a database that's really fast at the question: 'What's most similar to this?' Regular databases can't do that. Vector databases are built for it."*
+
+In the last chapter, you turned your text chunks into <GlossaryTooltip client:load term="embedding">embedding vectors</GlossaryTooltip> — long lists of numbers that capture meaning. Now you need somewhere to store them. And not just store them — you need to *search* them at speed.
+
+You might be thinking: "I already have a database. Can't I just use Postgres?" Good instinct, but no. Here's why.
+
+---
+
+## Why regular SQL databases fail at similarity search
+
+Imagine you have a million rows in a SQL table. Each row has a column called `embedding` containing 768 numbers. A user asks a question, and you need to find the 5 rows whose embeddings are most similar to the question's embedding.
+
+In SQL, you'd have to do something like this: calculate the <GlossaryTooltip client:load term="cosine similarity">cosine similarity</GlossaryTooltip> between the query vector and *every single row*. That means 1 million distance calculations, every time someone asks a question. There's no `WHERE embedding SIMILAR TO X` clause in SQL. There's no index that helps. It's a full table scan, every time. [src: qdrant_docs]
+
+For 100 documents, that's fine. For 100,000 documents, it takes seconds. For 10 million documents, it's unusable.
+
+A <GlossaryTooltip client:load term="vector database">vector database</GlossaryTooltip> solves this by building a special kind of index — one designed specifically for finding nearest neighbours in high-dimensional space. Instead of scanning every vector, it navigates a clever data structure to find the closest matches in milliseconds.
+
+<Callout type="plain-english">A vector database is a database with a special index that finds the most similar items out of millions in milliseconds — something regular SQL cannot do.</Callout>
+
+---
+
+## How vector databases actually work: the HNSW highway
+
+The most popular indexing algorithm in vector databases is called <GlossaryTooltip client:load term="HNSW">HNSW</GlossaryTooltip> — Hierarchical Navigable Small World. That's a mouthful, so let's use an analogy.
+
+**Think of it like a multi-level highway system.**
+
+You're trying to drive from your house to a specific coffee shop across the country. You don't check every single street in the country — that would take forever. Instead:
+
+1. **You start on the interstate** (the top level). You zoom across the country in a few hops, getting close to the right region. This level has very few "exits" — it's fast but approximate.
+2. **You exit onto a state highway** (the middle level). Now you're navigating within the right area, with more options and more precision.
+3. **You take local streets** (the bottom level). Now you're checking individual locations, and you find your coffee shop.
+
+HNSW works the same way with vectors. It builds multiple layers of connections between data points. The top layers have long-range connections for fast, approximate navigation. The bottom layers have short-range connections for precise, local search. The result: instead of checking a million vectors, you check maybe a few hundred — and still find the nearest neighbours with over 95% accuracy. [src: malkov2018hnsw]
+
+The trade-off is clear: HNSW gives you approximate nearest neighbours, not perfect ones. But for RAG, "the 5 most relevant chunks" doesn't need to be mathematically perfect — it needs to be fast and good enough. And HNSW delivers both.
+
+<Callout type="tip">HNSW trades a tiny bit of accuracy for massive speed gains. In practice, it finds the right nearest neighbours over 95% of the time — more than good enough for RAG.</Callout>
+
+---
+
+## The free vector database landscape
+
+You don't need to pay anything to get started. Here are the four most popular free options, each with a different sweet spot.
+
+### ChromaDB — the easiest starting point
+
+ChromaDB is an open-source vector database that runs locally on your machine with a single `pip install`. It stores data in an embedded database (SQLite + DuckDB under the hood), so there's no server to set up. You write Python code, and it just works. [src: chromadb_docs]
+
+**Best for:**
+
+- ✅ Learning and prototyping
+- ✅ Small projects (under ~100k documents)
+
+**Limitation:**
+
+- ⚠️ Not ideal for production-scale multi-user deployments
+
+### Qdrant — production-grade with a free tier
+
+Qdrant is a purpose-built vector database written in Rust for performance. It offers a generous free cloud tier (1GB storage, which is a lot of vectors), supports hybrid search out of the box, and has excellent filtering capabilities. [src: qdrant_docs]
+
+**Best for:**
+
+- ✅ Projects likely to grow into production
+- ✅ Teams that want managed cloud options
+
+**Limitation:**
+
+- ⚠️ Slightly more setup than ChromaDB for local-only use
+
+### FAISS — Facebook's speed demon
+
+FAISS (Facebook AI Similarity Search) is a library, not a database. It doesn't have a server or an API — it's a set of C++ functions (with Python bindings) that index and search vectors extremely fast. It's what you use when you need raw speed and you're comfortable managing storage yourself. [src: faiss_docs]
+
+**Best for:**
+
+- ✅ Maximum local performance
+- ✅ Research and large-scale batch processing
+
+**Limitation:**
+
+- ⚠️ No built-in server, persistence workflow, or filtering
+- ⚠️ Requires more custom implementation
+
+### Weaviate — the ecosystem player
+
+Weaviate is a full-featured vector database with a free cloud tier, built-in vectorisation (it can call embedding models for you), and a GraphQL API. It has the richest feature set of the four but also the steepest learning curve. [src: weaviate_docs]
+
+**Best for:**
+
+- ✅ Teams wanting an all-in-one platform
+- ✅ Built-in model integration workflows
+
+**Limitation:**
+
+- ⚠️ More complexity than needed for learning or small projects
+
+### Comparison at a glance
+
+| Feature | ChromaDB | Qdrant | FAISS | Weaviate |
+|---|---|---|---|---|
+| **Setup** | `pip install` | Docker or cloud | `pip install` | Docker or cloud |
+| **Runs locally** | Yes | Yes | Yes | Yes |
+| **Free cloud tier** | No | Yes (1GB) | No (library only) | Yes (sandbox) |
+| **Hybrid search** | No | Yes | No | Yes |
+| **Production-ready** | Prototype-scale | Yes | Yes (with work) | Yes |
+| **Best for beginners** | Yes | Second choice | No | No |
+| **Language** | Python | Rust | C++/Python | Go |
+
+---
+
+## Persistent vs. in-memory storage
+
+This is a small but important concept. When a vector database is **in-memory**, all your vectors live in RAM. The moment you stop your program, everything disappears. You'd have to re-embed all your documents next time.
+
+When a vector database is **persistent**, it saves vectors to disk. You can stop your program, restart your computer, and your data is still there. ChromaDB is persistent by default — it writes to a local directory. FAISS is in-memory by default — you have to explicitly save and load the index file yourself.
+
+For learning, either works. For anything you'd be annoyed to lose, use persistent storage.
+
+---
+
+## Try it: pick your database
+
+Not sure which database fits your project? Answer a few quick questions and get a recommendation.
+
+<DatabasePicker client:visible />
+
+---
+
+## Where does the vector database sit in the pipeline?
+
+Here's the full RAG architecture with the vector database highlighted. Notice that it sits between the embedding step (where chunks become vectors) and the retrieval step (where a query finds the most relevant chunks).
+
+<MermaidDiagram client:visible chart={`graph LR
+    A[📄 Raw Documents] --> B[Chunking]
+    B --> C[Embedding Model]
+    C --> D[("🗄️ Vector Database<br/>(ChromaDB, Qdrant, etc.)")]
+    E[❓ User Query] --> F[Embedding Model]
+    F --> G{Similarity Search}
+    D --> G
+    G --> H[Top-K Relevant Chunks]
+    H --> I[LLM + Prompt]
+    I --> J[✅ Answer with Sources]
+    style D fill:#3B82F6,stroke:#1e40af,color:#fff
+`} caption="The vector database sits at the center of the RAG pipeline — it stores your embedded chunks and powers the similarity search that finds relevant context for every query." />
+
+The vector database is the persistent memory of your RAG system. Documents go in once (during ingestion). Queries hit it every time a user asks a question. That's why speed matters — and why HNSW indexing is worth the complexity.
+
+---
+
+## Project step: store your vectors
+
+Head to the **Playground** and store the embedded chunks from Chapter 3 in a local ChromaDB instance. Watch the storage indicator confirm your vectors are persisted. Try closing the Playground tab and reopening it — your data should still be there.
+
+---
+
+## Quick check
+
+<QuickCheck client:visible chapterId="4-vector-databases" questions={[
+  {
+    question: "Why can't a regular SQL database efficiently handle similarity search over vectors?",
+    options: [
+      "SQL databases don't support storing arrays of numbers",
+      "SQL has no index for nearest-neighbour search, so it must scan every row",
+      "SQL databases are too slow to store large files",
+      "Vector math is not supported in any SQL dialect"
+    ],
+    correct: 1,
+    explanation: "Regular SQL databases have no indexing strategy for high-dimensional similarity search. Without a specialised index like HNSW, finding the nearest vectors requires comparing against every single row — a full table scan that gets slower as your data grows."
+  },
+  {
+    question: "In the HNSW algorithm, what does the multi-layer structure achieve?",
+    options: [
+      "It compresses vectors to use less storage space",
+      "It converts approximate results into exact results",
+      "It navigates from coarse long-range hops to precise local search, avoiding a full scan",
+      "It automatically selects the best embedding model for your data"
+    ],
+    correct: 2,
+    explanation: "HNSW builds a hierarchy of layers — top layers have long-range connections for fast approximate navigation, and bottom layers have short-range connections for precise local search. This lets it find nearest neighbours by checking only a few hundred vectors instead of millions."
+  }
+]} />
+
+---
+
+## What You Just Built
+
+In this chapter, you learned to:
+
+1. Understand why regular SQL databases can't do similarity search
+2. Choose the right vector database for your use case (ChromaDB, Qdrant, FAISS, Weaviate)
+3. Explain how HNSW indexing makes search fast at scale
+4. Store your embedded chunks in a persistent vector database
+
+Your chunks are now embedded, stored, and ready to be queried.
+
+**Next up: Chapter 5 — Retrieval Strategies.** Finding "the most similar chunks" is just the starting point. Hybrid search, re-ranking, and diversity controls are what separate a toy demo from a real product.
+
+---
+
+<FeedbackWidget client:visible chapterId="4-vector-databases" />
+
+---
+
+## Sources
+
+- **ChromaDB Documentation** — [docs.trychroma.com](https://docs.trychroma.com) [src: chromadb_docs]
+- **Qdrant Documentation** — [qdrant.tech/documentation](https://qdrant.tech/documentation) [src: qdrant_docs]
+- **FAISS Documentation** — [github.com/facebookresearch/faiss](https://github.com/facebookresearch/faiss) [src: faiss_docs]
+- **Weaviate Documentation** — [weaviate.io/developers/weaviate](https://weaviate.io/developers/weaviate) [src: weaviate_docs]
+- **Malkov & Yashunin (2018)** — ["Efficient and Robust Approximate Nearest Neighbor using Hierarchical Navigable Small World Graphs"](https://arxiv.org/abs/1603.09320) [src: malkov2018hnsw]
+
+[← Chapter 3: Embeddings](/learn/3-embeddings/) | [Chapter 5: Retrieval Strategies →](/learn/5-retrieval/)

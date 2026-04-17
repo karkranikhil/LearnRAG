@@ -1,0 +1,254 @@
+---
+title: "How to Evaluate a RAG Pipeline with RAGAS"
+description: "Learn the four metrics that matter for RAG evaluation — faithfulness, relevancy, precision, and recall — with an interactive RAGAS score calculator."
+---
+
+import ChapterProgress from '../../../components/react/ChapterProgress';
+import RagasScoreCalculator from '../../../components/react/RagasScoreCalculator';
+import MermaidDiagram from '../../../components/react/MermaidDiagram';
+import GlossaryTooltip from '../../../components/react/GlossaryTooltip';
+import QuickCheck from '../../../components/react/QuickCheck';
+import Callout from '../../../components/react/Callout';
+import FeedbackWidget from '../../../components/react/FeedbackWidget';
+
+<ChapterProgress client:load chapterNumber={7} badge="engineer" readTime={20} />
+
+# Evaluation: How Do You Know It's Good?
+
+### Building a RAG system is easy. Knowing if it actually works is the hard part — and the part most tutorials skip entirely.
+
+---
+
+**After this chapter, you will be able to:** measure your RAG pipeline's quality with four specific metrics, diagnose whether problems come from retrieval or generation, and build a test set to track improvements over time.
+
+---
+
+## Why "It Seems to Work" Is Not Good Enough
+
+You built a RAG chatbot. You asked it a few questions. The answers looked reasonable. Ship it?
+
+No. Here is why. "Looked reasonable" is not a metric. It is a vibe. And vibes do not catch the failure modes that matter most:
+
+- The answer sounds confident and well-written, but one of the three facts in it is made up. You did not notice because it was mixed in with two real facts.
+- The retrieval found 5 chunks, but 3 of them were irrelevant. The model used them anyway and the answer drifted off-topic.
+- The answer is correct, but it missed the most important piece of information because retrieval did not find the chunk that contained it.
+
+Every one of these failures looks fine on a quick glance. They only show up when you measure systematically. This chapter teaches you how.
+
+---
+
+## The Four Metrics That Actually Matter
+
+RAG evaluation breaks down into four questions. Each one targets a different part of your pipeline.
+
+<MermaidDiagram client:load chart={`
+graph LR
+    subgraph Retrieval["Retrieval Quality"]
+        CP["Context Precision<br/><i>Were the retrieved chunks relevant?</i>"]
+        CR["Context Recall<br/><i>Did we find ALL relevant chunks?</i>"]
+    end
+    subgraph Generation["Generation Quality"]
+        F["Faithfulness<br/><i>Is the answer grounded in the chunks?</i>"]
+        AR["Answer Relevancy<br/><i>Does the answer address the question?</i>"]
+    end
+
+    style CP fill:#3B82F6,stroke:#2D3148,color:#fff
+    style CR fill:#3B82F6,stroke:#2D3148,color:#fff
+    style F fill:#22C55E,stroke:#2D3148,color:#fff
+    style AR fill:#22C55E,stroke:#2D3148,color:#fff
+    style Retrieval fill:#1A1D27,stroke:#2D3148,color:#fff
+    style Generation fill:#1A1D27,stroke:#2D3148,color:#fff
+`} />
+
+### Metric 1 — Faithfulness (The Hallucination Check)
+
+<GlossaryTooltip client:load term="Faithfulness" definition="A measure of whether every claim in the generated answer can be traced back to the retrieved context. A faithfulness score of 1.0 means every statement is grounded. A score of 0.5 means half the answer is unsupported.">Faithfulness</GlossaryTooltip> asks: **is every claim in the answer actually supported by the retrieved chunks?**
+
+This is your hallucination detector. An LLM can write a beautiful, fluent answer that sounds completely authoritative — but if half of it came from the model's training data instead of your retrieved context, you have a faithfulness problem.
+
+How it works: take every individual claim in the generated answer and check whether the retrieved chunks contain evidence for it. If the answer says "The project deadline is March 15th" but none of the retrieved chunks mention March 15th, that claim is unfaithful. The score is the fraction of claims that are supported. [src: shahul2023ragas]
+
+**Real example:** Your chatbot answers "The quarterly revenue was $2.3M, up 15% from last quarter." If the retrieved chunk says "$2.3M revenue" but never mentions 15% growth, your faithfulness score drops because the model added a claim it could not support from context.
+
+<Callout type="plain-english">Faithfulness measures one thing: can every sentence in the answer be traced back to the retrieved chunks? If not, the model is making things up.</Callout>
+
+### Metric 2 — Answer Relevancy
+
+<GlossaryTooltip client:load term="Answer Relevancy" definition="A measure of whether the generated answer actually addresses the question that was asked. High relevancy means the answer is on-topic and useful. Low relevancy means the answer wandered off-topic or addressed a different question.">Answer Relevancy</GlossaryTooltip> asks: **does the answer actually address the question that was asked?**
+
+This catches a subtle failure mode. The answer might be entirely faithful to the chunks — every fact is real — but it does not answer the user's question. The user asked "What was the Q1 revenue?" and the model responded with a detailed summary of the company's hiring plans. Faithful? Yes, if the chunks discussed hiring. Relevant? Not at all.
+
+Answer relevancy is measured by checking whether the generated answer, if you reversed it back into a question, would produce a question similar to the original. If the answer drifts off-topic, the reverse-engineered question will not match. [src: shahul2023ragas]
+
+### Metric 3 — Context Precision
+
+<GlossaryTooltip client:load term="Context Precision" definition="A measure of whether the retrieved chunks are actually relevant to the question. High precision means most retrieved chunks were useful. Low precision means the retrieval returned a lot of irrelevant noise.">Context Precision</GlossaryTooltip> asks: **were the retrieved chunks actually relevant to the question?**
+
+This is a retrieval metric, not a generation metric. If you retrieved 5 chunks but only 2 of them were relevant, your precision is low. The other 3 chunks are noise — they waste context window space and can mislead the model.
+
+Think of it like a search engine. If you Google a question and 8 of the top 10 results are relevant, that is high precision. If only 2 are relevant and the rest are junk, precision is low. Same concept, applied to your chunk retrieval.
+
+### Metric 4 — Context Recall
+
+<GlossaryTooltip client:load term="Context Recall" definition="A measure of whether retrieval found ALL the relevant information that exists in your knowledge base. High recall means nothing important was missed. Low recall means there were relevant chunks that retrieval failed to find.">Context Recall</GlossaryTooltip> asks: **did retrieval find all the relevant chunks, or did it miss some?**
+
+This is the other side of the retrieval coin. Precision asks "was what we found useful?" Recall asks "did we find everything useful?" You can have perfect precision (every chunk you found was relevant) but terrible recall (you missed the three most important chunks in your database).
+
+To measure recall, you need to know what a good answer looks like. That means you need a test set with reference answers — which is why building a test set is so important.
+
+---
+
+## The RAGAS Framework
+
+<GlossaryTooltip client:load term="RAGAS" definition="Retrieval-Augmented Generation Assessment — an open-source framework for evaluating RAG pipelines. It computes faithfulness, answer relevancy, context precision, and context recall using LLM-based evaluation.">RAGAS</GlossaryTooltip> (Retrieval-Augmented Generation Assessment) is the industry-standard open-source framework for measuring all four metrics. It was introduced by Shahul Es et al. (2023) and has become the default evaluation tool in the RAG ecosystem. [src: shahul2023ragas]
+
+Here is how RAGAS works at a high level:
+
+1. You provide a **question**, the **retrieved context** (chunks), the **generated answer**, and optionally a **reference answer** (ground truth).
+2. RAGAS uses an LLM to evaluate each metric. For faithfulness, it breaks the answer into individual claims and checks each one against the context. For relevancy, it reverse-engineers questions from the answer and compares them to the original.
+3. Each metric returns a score between 0 and 1. Higher is better.
+
+You do not need to understand the internal mechanics to use it. You need to understand what the scores mean and what to do when they are low.
+
+| Score Range | What It Means |
+|---|---|
+| 0.9 – 1.0 | Excellent. Your pipeline is working well for this query. |
+| 0.7 – 0.9 | Good. Acceptable for most use cases, but room to improve. |
+| 0.5 – 0.7 | Mediocre. Users will notice problems. Investigate. |
+| Below 0.5 | Poor. Something is clearly broken. Diagnose immediately. |
+
+---
+
+## Building a Test Set
+
+You cannot evaluate your pipeline with one question. You need a <GlossaryTooltip client:load term="test set" definition="A collection of question-answer pairs used to benchmark your RAG pipeline's performance. Each entry includes a question, the expected answer, and ideally the specific chunks that should be retrieved.">test set</GlossaryTooltip> — a collection of question-answer pairs that you run your pipeline against every time you make a change.
+
+Here is how to build one efficiently:
+
+**Start with 20 questions.** Not 5 (too few to see patterns), not 200 (too many to maintain). Twenty gives you enough to spot systematic problems.
+
+**Cover different question types.** Include simple factual lookups ("What is the project deadline?"), questions requiring synthesis across multiple chunks ("How did the budget change between Q1 and Q2?"), and questions where the answer is not in your documents ("What was the competitor's revenue?"). The last category tests whether your system gracefully says "I don't know."
+
+**Write reference answers.** For each question, write the answer you expect. This is your ground truth. RAGAS uses it to compute context recall — it checks whether the retrieved chunks contain the information needed to produce this answer.
+
+**Use AI to help, but verify.** You can prompt an LLM to generate candidate questions from your documents. But verify every question-answer pair yourself. An LLM-generated test set that contains errors will give you meaningless scores.
+
+---
+
+## The Improvement Loop — Diagnosing What Is Wrong
+
+Your RAGAS scores are in. Some are low. Now what? The diagnostic question is: **is this a retrieval problem or a generation problem?**
+
+<MermaidDiagram client:load chart={`
+graph TD
+    A["RAG answers are wrong"] --> B{"Check Context Precision<br/>and Context Recall"}
+    B -->|"Low precision or recall"| C["RETRIEVAL PROBLEM"]
+    B -->|"Precision and recall are fine"| D{"Check Faithfulness<br/>and Answer Relevancy"}
+    D -->|"Low faithfulness"| E["GENERATION PROBLEM:<br/>Model is hallucinating"]
+    D -->|"Low relevancy"| F["GENERATION PROBLEM:<br/>Model is off-topic"]
+    C --> G["Fix chunking strategy,<br/>embedding model, or<br/>retrieval parameters"]
+    E --> H["Fix prompt: add stronger<br/>grounding instructions"]
+    F --> I["Fix prompt: add stricter<br/>relevancy instructions"]
+
+    style A fill:#EF4444,stroke:#2D3148,color:#fff
+    style C fill:#F59E0B,stroke:#2D3148,color:#000
+    style E fill:#F59E0B,stroke:#2D3148,color:#000
+    style F fill:#F59E0B,stroke:#2D3148,color:#000
+    style G fill:#22C55E,stroke:#2D3148,color:#fff
+    style H fill:#22C55E,stroke:#2D3148,color:#fff
+    style I fill:#22C55E,stroke:#2D3148,color:#fff
+    style B fill:#1A1D27,stroke:#2D3148,color:#fff
+    style D fill:#1A1D27,stroke:#2D3148,color:#fff
+`} />
+
+**If context precision is low:** your retrieval is returning irrelevant chunks. Try increasing the relevance threshold, switching to hybrid search, or adding a re-ranker (Chapter 5).
+
+**If context recall is low:** your retrieval is missing relevant chunks. Try a different chunking strategy — your chunks might be too large (burying the relevant sentence in noise) or too small (splitting the relevant information across two chunks that do not individually match). Also check your embedding model — a better model may capture the semantic match.
+
+**If faithfulness is low but retrieval looks fine:** the model is hallucinating. Your prompt needs stronger grounding instructions. Add explicit rules like "Do not use any information outside the provided context" and "If the context does not contain the answer, say so."
+
+**If answer relevancy is low but faithfulness is fine:** the model is giving accurate but off-topic answers. Your prompt may need clearer instructions about what the user is actually asking for, or your retrieval may be surfacing chunks that are tangentially related but pull the answer in the wrong direction.
+
+---
+
+## What "Good Enough" Looks Like
+
+Perfection is not the goal. Different use cases have different quality bars.
+
+| Use Case | Target Scores | Why |
+|---|---|---|
+| Internal knowledge base for engineers | Faithfulness > 0.8, Precision > 0.7 | Engineers can verify and tolerate occasional misses |
+| Customer-facing support chatbot | Faithfulness > 0.95, Relevancy > 0.9 | Wrong answers erode customer trust fast |
+| Research assistant (draft quality) | Recall > 0.85, Relevancy > 0.7 | Missing information is worse than noise — users will edit |
+| Legal or medical document Q&A | All metrics > 0.95 | Errors have real consequences |
+
+The key insight: **measure first, then decide your threshold.** Most teams do not know their scores at all. Even measuring badly is better than not measuring. You can always improve the test set and tighten the thresholds later.
+
+<Callout type="tip">Start by measuring anything at all. A rough test set of 20 questions with approximate reference answers is infinitely more useful than no evaluation. You can refine the test set over time.</Callout>
+
+---
+
+## Try It Yourself — Your RAG Score
+
+Paste a question, the generated answer, and the retrieved chunks your pipeline used. The calculator evaluates faithfulness and answer relevancy and shows you a score with an explanation of what it means.
+
+<RagasScoreCalculator client:visible />
+
+Try it with a good answer first — one where every fact comes from the chunks. Then try it with a bad answer — add a made-up fact that is not in any chunk. Watch the faithfulness score drop.
+
+---
+
+## Your Project Step
+
+Open the Playground and run your chatbot against 5 test questions. For each one, note the question, the retrieved chunks, and the generated answer. Use the RAGAS Score Calculator above to evaluate faithfulness and relevancy for each. Write down your scores. If any are below 0.7, use the diagnostic decision tree to identify whether the problem is in retrieval or generation — then go back to the relevant chapter and adjust.
+
+---
+
+<QuickCheck client:load chapterId="7-evaluation" questions={[
+  {
+    question: "Your RAG pipeline has high faithfulness (0.95) but low context recall (0.4). What does this tell you?",
+    options: [
+      "The model is hallucinating — it is making up facts not in the chunks",
+      "The retrieval is finding relevant chunks but the model is ignoring them",
+      "The model accurately uses what it gets, but retrieval is missing relevant chunks in the database",
+      "The prompt template needs stronger citation instructions"
+    ],
+    correct: 2,
+    explanation: "High faithfulness means the answer is grounded in the retrieved chunks — no hallucination. Low context recall means retrieval is failing to find all the relevant chunks that exist. The model is doing its job with what it receives, but it is not receiving enough."
+  },
+  {
+    question: "What are the four metrics in the RAGAS evaluation framework?",
+    options: [
+      "Accuracy, speed, cost, and latency",
+      "Faithfulness, answer relevancy, context precision, and context recall",
+      "Precision, recall, F1 score, and accuracy",
+      "Fluency, coherence, relevance, and groundedness"
+    ],
+    correct: 1,
+    explanation: "RAGAS evaluates four dimensions: faithfulness (is the answer grounded in context?), answer relevancy (does it address the question?), context precision (were retrieved chunks relevant?), and context recall (were all relevant chunks found?)."
+  }
+]} />
+
+---
+
+## What You Just Built
+
+You now have the ability to measure your RAG pipeline instead of guessing. You understand the four metrics that matter, you know how to build a test set, and you have a diagnostic framework for figuring out what to fix when scores are low. This is the chapter that separates people who build demos from people who build products.
+
+Your chatbot is now functional and measured. The next question is: what do you do when standard RAG is not enough? When queries are vague, complex, or when retrieval sometimes fails completely? That is where advanced patterns come in.
+
+---
+
+<FeedbackWidget client:visible chapterId="7-evaluation" />
+
+---
+
+## Sources
+
+- Shahul Es, James, Espinosa-Anke, L., Schockaert, S., & Alam, M. (2023). [*RAGAS: Automated Evaluation of Retrieval Augmented Generation.*](https://arxiv.org/abs/2309.15217) [src: shahul2023ragas]
+- RAGAS GitHub Documentation. [docs.ragas.io](https://docs.ragas.io) [src: ragas_docs]
+- LangChain. [*Evaluation Documentation.*](https://python.langchain.com/docs/) [src: langchain_eval_docs]
+
+---
+
+[← Chapter 6: The Prompt Layer](/learn/6-prompting/) | [Chapter 8: Advanced RAG Patterns →](/learn/8-advanced-patterns/)

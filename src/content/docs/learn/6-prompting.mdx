@@ -1,0 +1,251 @@
+---
+title: "The Prompt Layer"
+description: "Learn how to craft effective RAG prompts, handle the 'lost in the middle' problem, and build prompt templates with an interactive builder."
+---
+
+import ChapterProgress from '../../../components/react/ChapterProgress';
+import PromptBuilder from '../../../components/react/PromptBuilder';
+import MermaidDiagram from '../../../components/react/MermaidDiagram';
+import GlossaryTooltip from '../../../components/react/GlossaryTooltip';
+import QuickCheck from '../../../components/react/QuickCheck';
+import Callout from '../../../components/react/Callout';
+import FeedbackWidget from '../../../components/react/FeedbackWidget';
+
+<ChapterProgress client:load chapterNumber={6} badge="engineer" readTime={13} />
+
+# The Prompt Layer
+
+### Retrieved chunks are just raw ingredients. The prompt is the recipe that tells the AI what to cook.
+
+---
+
+**After this chapter, you will be able to:** craft a RAG prompt template that turns retrieved chunks into grounded, cited answers — and understand why prompt structure matters as much as retrieval quality.
+
+---
+
+## The Problem with "Just Give It the Chunks"
+
+You have spent the last five chapters building a pipeline that finds the right pieces of information. You have chunks. You have embeddings. You have retrieval scores. Now what?
+
+The tempting answer is: paste the chunks into the AI and ask your question. Done, right?
+
+Not even close. Without clear instructions, an <GlossaryTooltip client:load term="LLM" definition="Large Language Model — an AI trained on massive text data that can generate human-like responses. Examples include GPT-4, Claude, and Llama.">LLM</GlossaryTooltip> will do unpredictable things with your retrieved context. Sometimes it ignores the chunks entirely and answers from its training data. Sometimes it blends chunk content with made-up facts. Sometimes it uses the chunks but presents the information as if it knew it all along — no citations, no source attribution, no way for the user to verify anything.
+
+The prompt is where you take control. It is the difference between a demo that sometimes works and a system you would actually trust.
+
+---
+
+## Anatomy of a RAG Prompt
+
+Every RAG prompt has three sections, assembled in a specific order before being sent to the model.
+
+<MermaidDiagram client:load chart={`
+graph TD
+    A["System Prompt<br/><i>Instructions for the AI</i>"] --> D["Final Assembled Prompt"]
+    B["Retrieved Context<br/><i>Chunks from your pipeline</i>"] --> D
+    C["User Query<br/><i>The actual question</i>"] --> D
+    D --> E["LLM generates answer"]
+
+    style A fill:#3B82F6,stroke:#2D3148,color:#fff
+    style B fill:#22C55E,stroke:#2D3148,color:#fff
+    style C fill:#F59E0B,stroke:#2D3148,color:#000
+    style D fill:#1A1D27,stroke:#2D3148,color:#fff
+    style E fill:#1A1D27,stroke:#2D3148,color:#fff
+`} />
+
+**Section 1 — The System Prompt** sets the rules. It tells the AI who it is, how it should behave, and what it must never do. This is where you say things like: "Only answer using the provided context. If the context does not contain the answer, say so." This section stays the same for every query.
+
+**Section 2 — The Retrieved Context** contains the chunks your retrieval pipeline found. These are the specific pieces of information the AI should use to answer. You format them clearly — usually numbered, with source metadata attached — so the model can reference them.
+
+**Section 3 — The User Query** is the actual question being asked. It goes last, right before the model generates its response.
+
+The order matters. The system prompt establishes the rules before the model sees any content. The context provides the evidence. The query tells the model what to do with that evidence. [src: anthropic_prompt_docs]
+
+<Callout type="plain-english">A RAG prompt is three parts in order: instructions (system prompt), evidence (retrieved chunks), and the question (user query). The AI reads the rules before it sees the content.</Callout>
+
+---
+
+## The "Lost in the Middle" Problem
+
+Here is something most tutorials skip: LLMs do not pay equal attention to every part of a long prompt. Research by Liu et al. (2023) found that models perform best when the most relevant information appears at the **beginning** or **end** of the context window. Information placed in the middle gets less attention — the model is more likely to miss it or give it less weight. [src: liu2023lost]
+
+Think of it like reading a long email. You remember the opening line and the last thing you read. The stuff in the middle? It blurs together.
+
+This has a direct practical consequence for how you order your retrieved chunks:
+
+- **Put your highest-scoring chunks first.** The model pays the most attention to the beginning of the context.
+- **Put the second-best chunks last.** The model also pays strong attention to the end.
+- **Put lower-relevance chunks in the middle.** If they get partially ignored, you lose the least.
+
+This is not a theory. It is a measured effect that impacts answer quality in production systems. If you have five retrieved chunks ranked by relevance, order them: 1, 3, 5, 4, 2 — best at the start, second-best at the end. [src: liu2023lost]
+
+---
+
+## Context Window Math Made Simple
+
+Every LLM has a <GlossaryTooltip client:load term="context window" definition="The maximum number of tokens (roughly words or word-pieces) that an LLM can process in a single request. Everything — system prompt, context, query, and response — must fit inside this window.">context window</GlossaryTooltip> — a maximum number of <GlossaryTooltip client:load term="tokens" definition="The basic units that LLMs process. One token is roughly 3/4 of a word in English. 'Hamburger' is 3 tokens. A 500-word paragraph is roughly 670 tokens.">tokens</GlossaryTooltip> it can handle in a single request. Everything you send — system prompt, retrieved chunks, user query — plus everything the model generates in response, must fit inside that window.
+
+Here is the math for a model with an 8,000-token context window:
+
+| Component | Typical Token Count |
+|---|---|
+| System prompt | ~200–500 tokens |
+| Each retrieved chunk | ~150–300 tokens |
+| User query | ~20–50 tokens |
+| Reserved for model response | ~500–1,000 tokens |
+| **Available for chunks** | **~6,000–7,000 tokens** |
+
+If each chunk averages 200 tokens, you could technically fit 30–35 chunks. But you should not. More chunks means more noise. The model has to sort through more content to find what matters, and the lost-in-the-middle effect gets worse.
+
+**The practical rule: aim for 3 to 5 high-quality chunks.** That is around 600–1,000 tokens of context — plenty for the model to give a grounded answer, little enough to avoid dilution. If your retrieval is good, 3 chunks is often better than 10.
+
+<Callout type="warning">More chunks is not better. Stuffing 20 chunks into the context dilutes relevance, worsens the lost-in-the-middle effect, and eats up tokens you need for the model's response.</Callout>
+
+---
+
+## Citation Formatting — Making the AI Show Its Sources
+
+One of the most important things your prompt can do is force the model to cite where its answer came from. Without citation instructions, the AI presents retrieved information as if it knew it all along. The user has no way to verify anything.
+
+The fix is simple: tell the model to cite, and give it something to cite. Number your chunks in the context section, then instruct the model to reference those numbers.
+
+Here is what that looks like in practice:
+
+```
+CONTEXT:
+[1] (meeting-notes-jan.md) The project deadline was moved to March 15th.
+[2] (budget-2024.xlsx) Q1 budget was approved at $45,000.
+[3] (meeting-notes-feb.md) The team agreed to hire two contractors.
+
+INSTRUCTIONS: Answer the user's question using ONLY the context above.
+Cite your sources using [1], [2], etc.
+```
+
+With this structure, the model generates responses like: "The project deadline is March 15th [1], and the team plans to hire two contractors to meet it [3]." The user can verify each claim by checking the referenced source.
+
+---
+
+## Prompt Templates for Common RAG Use Cases
+
+You do not need to write a new prompt from scratch for every application. Most RAG use cases fall into one of three patterns.
+
+### Template 1 — Question & Answer Over Documents
+
+This is the most common pattern. The user asks a question, and the system answers strictly from the provided documents.
+
+```
+SYSTEM: You are a helpful assistant that answers questions based
+on the provided documents. Use ONLY the information in the CONTEXT
+section below. If the answer is not in the context, say "I don't
+have enough information to answer that." Always cite your sources
+using the document labels provided.
+
+CONTEXT:
+{retrieved_chunks}
+
+USER: {user_question}
+```
+
+### Template 2 — Summarisation with Sources
+
+The user wants a summary of information across multiple documents, with clear attribution.
+
+```
+SYSTEM: You are a research assistant. Summarise the key points
+from the documents below. Organise your summary by topic. Cite
+each point with the source document label. Do not add information
+that is not in the provided documents.
+
+CONTEXT:
+{retrieved_chunks}
+
+USER: Summarise what these documents say about {topic}.
+```
+
+### Template 3 — Conversational Chatbot with Memory
+
+For multi-turn conversations, you include the conversation history as an additional section.
+
+```
+SYSTEM: You are a helpful chatbot that answers questions about
+the user's documents. Use the CONTEXT to answer. If you used
+information from a previous turn and it is still relevant, you
+may reference it. Always cite new information from CONTEXT.
+
+CONVERSATION HISTORY:
+{previous_turns}
+
+CONTEXT:
+{retrieved_chunks}
+
+USER: {user_question}
+```
+
+The key difference in the conversational template is the conversation history section. This lets the model understand follow-up questions like "What about the second point?" without losing track of what was discussed before.
+
+---
+
+## Try It Yourself — The Prompt Builder
+
+Build your own RAG prompt interactively. Write a system prompt, add retrieved chunks, enter a query, and see how the final assembled prompt looks — complete with token counts per section.
+
+<PromptBuilder client:visible />
+
+Experiment with reordering chunks. Move your best chunk to the middle — then move it back to the top. Watch how the structure changes. In a real system, this reordering can measurably affect answer quality.
+
+---
+
+## Your Project Step
+
+Open the Playground and craft the prompt template your chatbot will use. Start with Template 1 (Q&A over documents). Set the system prompt to instruct the model to answer only from your notes and always cite the source chunk. Run a test query and check: does the answer come from your chunks? Does it cite them? If not, adjust your system prompt until it does.
+
+---
+
+<QuickCheck client:load chapterId="6-prompting" questions={[
+  {
+    question: "What are the three main sections of a RAG prompt, in the order they are assembled?",
+    options: [
+      "User query, retrieved context, system prompt",
+      "System prompt, retrieved context, user query",
+      "Retrieved context, system prompt, user query",
+      "System prompt, user query, retrieved context"
+    ],
+    correct: 1,
+    explanation: "The system prompt sets the rules first, then the retrieved context provides the evidence, and finally the user query tells the model what to answer. This order ensures the model understands its instructions before seeing any content."
+  },
+  {
+    question: "According to the 'lost in the middle' research, where should you place your most relevant retrieved chunks?",
+    options: [
+      "Always in the exact middle of the context",
+      "At the beginning and end — the middle gets less attention",
+      "It does not matter — LLMs process all positions equally",
+      "Only at the very end of the context"
+    ],
+    correct: 1,
+    explanation: "Liu et al. (2023) found that LLMs pay the most attention to the beginning and end of their context window. Information placed in the middle is more likely to be overlooked, so your best chunks should go at the start and end."
+  }
+]} />
+
+---
+
+## What You Just Built
+
+You now have the third critical layer of your RAG pipeline. Retrieval finds the right information. The prompt tells the AI exactly how to use it. You know how to structure a prompt with system instructions, retrieved context, and the user query. You know why chunk ordering matters and how to force the model to cite its sources. You have a working prompt template for your chatbot.
+
+But here is the question you cannot yet answer: **is your chatbot actually giving good answers?** "It seems to work" is not a metric. Next, you will learn how to measure quality — and how to diagnose exactly what is wrong when the answers fall short.
+
+---
+
+<FeedbackWidget client:visible chapterId="6-prompting" />
+
+---
+
+## Sources
+
+- Liu, N. F., Lin, K., Hewitt, J., Paranjape, A., Bevilacqua, M., Petroni, F., & Liang, P. (2023). [*Lost in the Middle: How Language Models Use Long Contexts.*](https://arxiv.org/abs/2307.03172) [src: liu2023lost]
+- Anthropic. [*Prompt Engineering Documentation.*](https://docs.anthropic.com/) [src: anthropic_prompt_docs]
+- LangChain. [*Prompt Templates Documentation.*](https://python.langchain.com/docs/) [src: langchain_prompts_docs]
+
+---
+
+[← Chapter 5: Retrieval Strategies](/learn/5-retrieval/) | [Chapter 7: Evaluation →](/learn/7-evaluation/)

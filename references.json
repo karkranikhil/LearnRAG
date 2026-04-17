@@ -1,0 +1,106 @@
+{
+  "lewis2020": {
+    "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+    "authors": ["Patrick Lewis", "Ethan Perez", "Aleksandra Piktus", "Fabio Petroni", "Vladimir Karpukhin", "Naman Goyal", "Heinrich Küttler", "Mike Lewis", "Wen-tau Yih", "Tim Rocktäschel", "Sebastian Riedel", "Douwe Kiela"],
+    "year": 2020,
+    "venue": "NeurIPS 2020",
+    "url": "https://arxiv.org/abs/2005.11401",
+    "tier": 1
+  },
+  "malkov2018hnsw": {
+    "title": "Efficient and Robust Approximate Nearest Neighbor Using Hierarchical Navigable Small World Graphs",
+    "authors": ["Yu A. Malkov", "D. A. Yashunin"],
+    "year": 2018,
+    "venue": "IEEE TPAMI",
+    "url": "https://arxiv.org/abs/1603.09320",
+    "tier": 1
+  },
+  "shahul2023ragas": {
+    "title": "RAGAS: Automated Evaluation of Retrieval Augmented Generation",
+    "authors": ["Shahul Es", "Jithin James", "Luis Espinosa-Anke", "Steven Schockaert"],
+    "year": 2023,
+    "venue": "arXiv",
+    "url": "https://arxiv.org/abs/2309.15217",
+    "tier": 1
+  },
+  "gao2022hyde": {
+    "title": "Precise Zero-Shot Dense Retrieval without Relevance Labels",
+    "authors": ["Luyu Gao", "Xueguang Ma", "Jimmy Lin", "Jamie Callan"],
+    "year": 2022,
+    "venue": "ACL 2023",
+    "url": "https://arxiv.org/abs/2212.10496",
+    "tier": 1
+  },
+  "asai2023selfrag": {
+    "title": "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection",
+    "authors": ["Akari Asai", "Zeqiu Wu", "Yizhong Wang", "Avirup Sil", "Hannaneh Hajishirzi"],
+    "year": 2023,
+    "venue": "ICLR 2024",
+    "url": "https://arxiv.org/abs/2310.11511",
+    "tier": 1
+  },
+  "yan2024crag": {
+    "title": "Corrective Retrieval Augmented Generation",
+    "authors": ["Shi-Qi Yan", "Jia-Chen Gu", "Yun Zhu", "Zhen-Hua Ling"],
+    "year": 2024,
+    "venue": "arXiv",
+    "url": "https://arxiv.org/abs/2401.15884",
+    "tier": 1
+  },
+  "liu2023lost": {
+    "title": "Lost in the Middle: How Language Models Use Long Contexts",
+    "authors": ["Nelson F. Liu", "Kevin Lin", "John Hewitt", "Ashwin Paranjape", "Michele Bevilacqua", "Fabio Petroni", "Percy Liang"],
+    "year": 2023,
+    "venue": "TACL 2024",
+    "url": "https://arxiv.org/abs/2307.03172",
+    "tier": 1
+  },
+  "alammar_word2vec": {
+    "title": "The Illustrated Word2Vec",
+    "authors": ["Jay Alammar"],
+    "year": 2019,
+    "venue": "Blog",
+    "url": "https://jalammar.github.io/illustrated-word2vec/",
+    "tier": 2
+  },
+  "langchain_docs": {
+    "title": "LangChain Documentation",
+    "authors": ["LangChain"],
+    "year": 2024,
+    "venue": "Documentation",
+    "url": "https://python.langchain.com/docs/",
+    "tier": 1
+  },
+  "llamaindex_docs": {
+    "title": "LlamaIndex Documentation",
+    "authors": ["LlamaIndex"],
+    "year": 2024,
+    "venue": "Documentation",
+    "url": "https://docs.llamaindex.ai/",
+    "tier": 1
+  },
+  "chromadb_docs": {
+    "title": "ChromaDB Documentation",
+    "authors": ["Chroma"],
+    "year": 2024,
+    "venue": "Documentation",
+    "url": "https://docs.trychroma.com/",
+    "tier": 1
+  },
+  "anthropic_docs": {
+    "title": "Anthropic Documentation",
+    "authors": ["Anthropic"],
+    "year": 2024,
+    "venue": "Documentation",
+    "url": "https://docs.anthropic.com/",
+    "tier": 1
+  },
+  "transformersjs_docs": {
+    "title": "Transformers.js Documentation",
+    "authors": ["Hugging Face"],
+    "year": 2024,
+    "venue": "Documentation",
+    "url": "https://huggingface.co/docs/transformers.js/",
+    "tier": 1
+  }
+}

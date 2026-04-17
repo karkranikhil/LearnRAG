@@ -1,0 +1,76 @@
+{
+  "chapters": [
+    {
+      "id": "1-why-rag",
+      "number": 1,
+      "title": "Why RAG Exists",
+      "badge": "explorer",
+      "readTime": 12,
+      "hook": "Your AI is trained on yesterday's news. RAG is how you plug it into today.",
+      "outcome": "Explain what RAG is and why it solves the hallucination problem"
+    },
+    {
+      "id": "2-chunking",
+      "number": 2,
+      "title": "Data Ingestion & Chunking",
+      "badge": "explorer",
+      "readTime": 15,
+      "hook": "You can't feed a library into an AI all at once. Chunking is how you cut it into pieces the AI can actually use.",
+      "outcome": "Split any document into well-sized chunks and understand the tradeoffs"
+    },
+    {
+      "id": "3-embeddings",
+      "number": 3,
+      "title": "Embeddings & The Vector Space",
+      "badge": "builder",
+      "readTime": 18,
+      "hook": "An embedding is just a list of numbers that captures the meaning of a sentence. Similar sentences have similar numbers.",
+      "outcome": "Understand what embeddings are and use them to find similar text"
+    },
+    {
+      "id": "4-vector-databases",
+      "number": 4,
+      "title": "Vector Databases",
+      "badge": "builder",
+      "readTime": 14,
+      "hook": "A vector database is just a database that's really fast at the question: 'What's most similar to this?'",
+      "outcome": "Choose and use the right vector database for your use case"
+    },
+    {
+      "id": "5-retrieval",
+      "number": 5,
+      "title": "Retrieval Strategies",
+      "badge": "builder",
+      "readTime": 16,
+      "hook": "Searching by meaning is just the beginning. The difference between a toy demo and a real product is how smart your search is.",
+      "outcome": "Implement hybrid search, MMR, and re-ranking strategies"
+    },
+    {
+      "id": "6-prompting",
+      "number": 6,
+      "title": "The Prompt Layer",
+      "badge": "engineer",
+      "readTime": 13,
+      "hook": "Retrieved chunks are just raw ingredients. The prompt is the recipe that tells the AI what to cook.",
+      "outcome": "Write effective RAG prompts with citation formatting"
+    },
+    {
+      "id": "7-evaluation",
+      "number": 7,
+      "title": "Evaluation",
+      "badge": "engineer",
+      "readTime": 20,
+      "hook": "Building a RAG system is easy. Knowing if it actually works is the hard part.",
+      "outcome": "Measure faithfulness, relevancy, precision, and recall with RAGAS"
+    },
+    {
+      "id": "8-advanced-patterns",
+      "number": 8,
+      "title": "Advanced RAG Patterns",
+      "badge": "architect",
+      "readTime": 25,
+      "hook": "Standard RAG is a knife. These patterns are the rest of the kitchen.",
+      "outcome": "Choose the right advanced pattern for your specific problem"
+    }
+  ]
+}

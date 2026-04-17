@@ -1,0 +1,533 @@
+---
+import '../styles/global.css';
+
+const chapters = [
+  { href: '/learn/1-why-rag/', num: '01', title: 'Why RAG Exists', time: '12 min', badge: 'Explorer', color: 'purple' },
+  { href: '/learn/2-chunking/', num: '02', title: 'Data Ingestion & Chunking', time: '15 min', badge: 'Explorer', color: 'purple' },
+  { href: '/learn/3-embeddings/', num: '03', title: 'Embeddings & Vectors', time: '18 min', badge: 'Builder', color: 'purple' },
+  { href: '/learn/4-vector-databases/', num: '04', title: 'Vector Databases', time: '14 min', badge: 'Builder', color: 'purple' },
+  { href: '/learn/5-retrieval/', num: '05', title: 'Retrieval Strategies', time: '16 min', badge: 'Builder', color: 'purple' },
+  { href: '/learn/6-prompting/', num: '06', title: 'The Prompt Layer', time: '13 min', badge: 'Engineer', color: 'green' },
+  { href: '/learn/7-evaluation/', num: '07', title: 'Evaluation', time: '20 min', badge: 'Engineer', color: 'green' },
+  { href: '/learn/8-advanced-patterns/', num: '08', title: 'Advanced Patterns', time: '25 min', badge: 'Architect', color: 'amber' },
+];
+
+const badgeColors: Record<string, { text: string; bg: string; border: string }> = {
+  purple: { text: 'oklch(0.7 0.2 293)', bg: 'oklch(0.65 0.281 293 / 5%)', border: 'oklch(0.65 0.281 293 / 20%)' },
+  green: { text: '#4ade80', bg: 'rgba(74,222,128,0.05)', border: 'rgba(74,222,128,0.2)' },
+  amber: { text: '#fbbf24', bg: 'rgba(251,191,36,0.05)', border: 'rgba(251,191,36,0.2)' },
+};
+
+const steps = [
+  { label: 'Documents', ch: 'Ch 1' },
+  { label: 'Chunk', ch: 'Ch 2' },
+  { label: 'Embed', ch: 'Ch 3' },
+  { label: 'Store', ch: 'Ch 4' },
+  { label: 'Search', ch: 'Ch 5' },
+  { label: 'Answer', ch: 'Ch 6-8' },
+];
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LearnRAG — Build Your First RAG App, Free and Interactive</title>
+    <meta name="description" content="Build a working RAG chatbot over your own documents — with interactive demos, real code, and no signup. Free, hands-on, from zero to production patterns." />
+    <meta name="theme-color" content="#16131e" />
+    <link rel="canonical" href="https://learnrag.online/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://learnrag.online/" />
+    <meta property="og:title" content="LearnRAG — Build Your First RAG App, Free and Interactive" />
+    <meta property="og:description" content="The hands-on course on Retrieval-Augmented Generation. 8 chapters, interactive playground, real project. No signup required." />
+    <meta property="og:site_name" content="LearnRAG" />
+    <meta property="og:image" content="https://learnrag.online/Thumbnail.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="LearnRAG — Build a RAG app. Right here. Right now." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LearnRAG — Build Your First RAG App" />
+    <meta name="twitter:description" content="The hands-on course on RAG. Interactive demos, real code, one real project. Free forever." />
+    <meta name="twitter:image" content="https://learnrag.online/Thumbnail.png" />
+    <meta name="twitter:image:alt" content="LearnRAG — Build a RAG app. Right here. Right now." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "LearnRAG",
+      "url": "https://learnrag.online",
+      "description": "The hands-on, free course on Retrieval-Augmented Generation. 8 chapters, interactive playground, real project. No signup required.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": { "@type": "EntryPoint", "urlTemplate": "https://learnrag.online/learn/1-why-rag/?q={search_term_string}" },
+        "query-input": "required name=search_term_string"
+      }
+    })}></script>
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Course",
+      "name": "LearnRAG — Retrieval-Augmented Generation",
+      "description": "Learn to build RAG systems from zero to production. 8 chapters, interactive playground, hands-on labs. Free forever.",
+      "url": "https://learnrag.online",
+      "provider": { "@type": "Organization", "name": "LearnRAG", "url": "https://learnrag.online" },
+      "educationalLevel": "Beginner to Advanced",
+      "isAccessibleForFree": true,
+      "inLanguage": "en",
+      "hasCourseInstance": { "@type": "CourseInstance", "courseMode": "online", "courseWorkload": "PT2H30M" },
+      "syllabusSections": [
+        { "@type": "Syllabus", "name": "Why RAG Exists", "url": "https://learnrag.online/learn/1-why-rag/" },
+        { "@type": "Syllabus", "name": "Data Ingestion & Chunking", "url": "https://learnrag.online/learn/2-chunking/" },
+        { "@type": "Syllabus", "name": "Embeddings & The Vector Space", "url": "https://learnrag.online/learn/3-embeddings/" },
+        { "@type": "Syllabus", "name": "Vector Databases", "url": "https://learnrag.online/learn/4-vector-databases/" },
+        { "@type": "Syllabus", "name": "Retrieval Strategies", "url": "https://learnrag.online/learn/5-retrieval/" },
+        { "@type": "Syllabus", "name": "The Prompt Layer", "url": "https://learnrag.online/learn/6-prompting/" },
+        { "@type": "Syllabus", "name": "Evaluation with RAGAS", "url": "https://learnrag.online/learn/7-evaluation/" },
+        { "@type": "Syllabus", "name": "Advanced RAG Patterns", "url": "https://learnrag.online/learn/8-advanced-patterns/" }
+      ]
+    })}></script>
+    <!-- Inter and JetBrains Mono loaded via @fontsource in global.css (self-hosted, no Google Fonts request) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; }
+      body {
+        background: oklch(0.1 0.005 285);
+        color: oklch(0.95 0 0);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        line-height: 1.7;
+        overflow-x: hidden;
+      }
+      a { text-decoration: none; color: inherit; }
+      ::selection { background: oklch(0.65 0.281 293 / 30%); color: oklch(0.9 0.15 293); }
+      .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+
+      /* ── Grid background ── */
+      .bg-grid {
+        position: fixed; inset: 0; z-index: 0; pointer-events: none;
+        background-image:
+          linear-gradient(oklch(1 0 0 / 3%) 1px, transparent 1px),
+          linear-gradient(90deg, oklch(1 0 0 / 3%) 1px, transparent 1px);
+        background-size: 60px 60px;
+      }
+
+      /* ── Gradient orbs ── */
+      .orb {
+        position: fixed; border-radius: 9999px; pointer-events: none; z-index: 0;
+        filter: blur(120px);
+      }
+      .orb-1 { width: 600px; height: 600px; top: -150px; left: -200px; background: oklch(0.541 0.281 293 / 8%); }
+      .orb-2 { width: 500px; height: 500px; bottom: -100px; right: -150px; background: oklch(0.541 0.281 293 / 6%); }
+      .orb-3 { width: 400px; height: 400px; top: 40%; left: 60%; background: oklch(0.6 0.2 330 / 5%); }
+
+      /* ── Navbar ── */
+      .topnav {
+        position: fixed; top: 0; width: 100%; z-index: 50; height: 4rem;
+        background: oklch(0.1 0.005 285 / 60%);
+        backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid oklch(1 0 0 / 4%);
+        display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem;
+      }
+      .topnav .logo { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.03em; color: oklch(0.95 0 0); }
+      .topnav nav a {
+        font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500;
+        letter-spacing: 0.1em; text-transform: uppercase; color: oklch(0.6 0 0); transition: color 0.15s;
+      }
+      .topnav nav a:hover { color: oklch(0.95 0 0); }
+      .topnav nav a.active { color: oklch(0.7 0.2 293); border-bottom: 2px solid oklch(0.65 0.281 293); padding-bottom: 2px; }
+
+      /* ── Content layers ── */
+      .page-content { position: relative; z-index: 1; }
+
+      /* ── Hero ── */
+      .hero { text-align: center; padding: 9rem 1.5rem 3rem; max-width: 720px; margin: 0 auto; }
+      .hero .micro { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: oklch(0.7 0.2 293); margin-bottom: 1.5rem; }
+      .hero h1 { font-size: clamp(2.25rem, 5vw, 3.5rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; margin-bottom: 1.5rem; }
+      .gradient-text {
+        background: linear-gradient(135deg, oklch(0.7 0.281 293), oklch(0.6 0.2 330), oklch(0.65 0.281 293));
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      }
+      .hero .sub { font-size: 1.125rem; color: oklch(0.6 0 0); font-weight: 400; line-height: 1.65; margin-bottom: 2.5rem; max-width: 540px; margin-left: auto; margin-right: auto; }
+      .hero .ctas { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+      .hero .trust { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: oklch(0.45 0 0); }
+
+      /* ── Buttons ── */
+      .btn-primary {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        padding: 0.75rem 2rem; background: oklch(0.65 0.281 293.009); color: oklch(0.95 0 0);
+        font-weight: 700; font-size: 0.9375rem; border-radius: 0.75rem;
+        box-shadow: 0 0 40px oklch(0.541 0.281 293 / 15%), 0 0 80px oklch(0.541 0.281 293 / 8%);
+        transition: transform 0.15s, box-shadow 0.2s;
+      }
+      .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 50px oklch(0.541 0.281 293 / 25%), 0 0 100px oklch(0.541 0.281 293 / 12%); }
+      .btn-outline {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        padding: 0.75rem 1.75rem; background: oklch(0.1 0.005 285 / 60%);
+        color: oklch(0.95 0 0); font-weight: 600; font-size: 0.9375rem;
+        border: 1px solid oklch(1 0 0 / 8%); border-radius: 0.75rem;
+        backdrop-filter: blur(4px); transition: border-color 0.15s, background 0.15s;
+      }
+      .btn-outline:hover { border-color: oklch(0.65 0.281 293 / 30%); background: oklch(0.14 0.005 285 / 80%); }
+
+      /* ── Product preview ── */
+      .preview { max-width: 960px; margin: 0 auto; padding: 0 1.5rem 5rem; }
+      .preview-frame {
+        background: oklch(0.14 0.005 285 / 50%); border: 1px solid oklch(1 0 0 / 8%);
+        border-radius: 1rem; overflow: hidden; backdrop-filter: blur(8px);
+        box-shadow: 0 32px 80px oklch(0 0 0 / 40%), 0 0 60px oklch(0.541 0.281 293 / 5%);
+      }
+      .preview-chrome {
+        display: flex; align-items: center; gap: 6px; padding: 12px 16px;
+        background: oklch(0.12 0.005 285 / 80%); border-bottom: 1px solid oklch(1 0 0 / 6%);
+      }
+      .preview-dot { width: 10px; height: 10px; border-radius: 50%; opacity: 0.6; }
+      .preview-content { padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: oklch(0.08 0.003 285); }
+      .preview-panel { background: oklch(0.1 0.005 285); padding: 1.25rem; }
+      .preview-panel h4 { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(0.6 0 0); margin-bottom: 0.75rem; }
+      .preview-caption { text-align: center; padding-top: 1.25rem; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(0.45 0 0); }
+
+      .chunk-card { padding: 0.5rem 0.625rem; border-radius: 0.5rem; margin-bottom: 0.375rem; font-size: 11px; line-height: 1.4; border-left: 2px solid; }
+      .result-card { padding: 0.625rem; background: oklch(0.14 0.005 285 / 50%); border: 1px solid oklch(1 0 0 / 6%); border-radius: 0.5rem; margin-bottom: 0.375rem; font-size: 11px; backdrop-filter: blur(4px); }
+      .score-pill { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border-radius: 9999px; }
+
+      /* ── Sections ── */
+      .section { max-width: 1080px; margin: 0 auto; padding: 5rem 1.5rem; }
+      .section-narrow { max-width: 760px; }
+      .divider { height: 1px; background: oklch(1 0 0 / 4%); }
+      .section-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: oklch(0.7 0.2 293); margin-bottom: 1rem; }
+      .section-h2 { font-size: 1.5rem; font-weight: 700; color: oklch(0.95 0 0); margin-bottom: 0.625rem; letter-spacing: -0.015em; }
+      .section-sub { color: oklch(0.6 0 0); font-size: 0.9375rem; margin-bottom: 2.5rem; }
+
+      /* ── Pipeline strip ── */
+      .pipeline { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; background: oklch(0.08 0.003 285); border: 1px solid oklch(1 0 0 / 6%); border-radius: 0.75rem; overflow: hidden; margin-top: 1.5rem; }
+      .pipeline-step { background: oklch(0.1 0.005 285); padding: 1rem; text-align: center; transition: all 0.2s; }
+      .pipeline-step:hover { background: oklch(0.14 0.005 285); transform: translateY(-2px); }
+      .pipeline-step .step-label { font-size: 13px; font-weight: 600; color: oklch(0.7 0.2 293); margin-bottom: 2px; }
+      .pipeline-step .step-ch { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(0.45 0 0); }
+
+      /* ── How it works ── */
+      .how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+      .how-card {
+        padding: 1.5rem; border-radius: 1rem;
+        background: oklch(0.14 0.005 285 / 50%); border: 1px solid oklch(1 0 0 / 4%);
+        backdrop-filter: blur(4px); transition: all 0.2s;
+      }
+      .how-card:hover { border-color: oklch(0.65 0.281 293 / 30%); background: oklch(0.14 0.005 285 / 80%); transform: translateY(-3px); }
+      .how-card .step-num { font-size: 2.5rem; font-weight: 800; color: oklch(0.65 0.281 293 / 15%); line-height: 1; margin-bottom: 0.75rem; }
+      .how-card h3 { font-size: 1rem; font-weight: 600; color: oklch(0.95 0 0); margin-bottom: 0.375rem; }
+      .how-card p { font-size: 0.8125rem; color: oklch(0.6 0 0); line-height: 1.55; }
+
+      /* ── Curriculum list ── */
+      .curriculum-list {
+        background: oklch(0.14 0.005 285 / 50%); border: 1px solid oklch(1 0 0 / 6%);
+        border-radius: 0.75rem; overflow: hidden; backdrop-filter: blur(4px);
+      }
+      .curriculum-row {
+        display: flex; align-items: center; padding: 0.75rem 1rem;
+        border-bottom: 1px solid oklch(1 0 0 / 4%); transition: all 0.15s; gap: 1rem;
+      }
+      .curriculum-row:hover { background: oklch(0.14 0.005 285 / 80%); }
+      .curriculum-row:last-child { border-bottom: none; }
+      .curriculum-num { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: oklch(0.45 0 0); width: 2rem; flex-shrink: 0; }
+      .curriculum-title { flex: 1; font-size: 0.9375rem; font-weight: 500; color: oklch(0.95 0 0); }
+      .curriculum-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: oklch(0.45 0 0); letter-spacing: 0.05em; width: 4.5rem; text-align: right; flex-shrink: 0; }
+      .curriculum-badge {
+        font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+        letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px;
+        border-radius: 9999px; flex-shrink: 0;
+      }
+
+      /* ── Playground CTA ── */
+      .pg-section {
+        background: oklch(0.12 0.008 293 / 30%);
+        border-top: 1px solid oklch(0.65 0.281 293 / 10%);
+        border-bottom: 1px solid oklch(1 0 0 / 4%);
+      }
+      .pg-inner { max-width: 960px; margin: 0 auto; padding: 5rem 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+      .pg-inner h2 { font-size: 1.5rem; font-weight: 700; color: oklch(0.95 0 0); margin-bottom: 0.75rem; }
+      .pg-inner > div:first-child p { color: oklch(0.6 0 0); font-size: 0.9375rem; margin-bottom: 1.5rem; line-height: 1.6; }
+      .pg-visual {
+        background: oklch(0.1 0.005 285 / 60%); border: 1px solid oklch(1 0 0 / 8%);
+        border-radius: 0.75rem; padding: 1.5rem; backdrop-filter: blur(8px);
+        font-family: 'JetBrains Mono', monospace; font-size: 11px; color: oklch(0.6 0 0);
+      }
+
+      /* ── Proof bar ── */
+      .proof { text-align: center; padding: 2.5rem 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(0.45 0 0); }
+
+      /* ── Final CTA ── */
+      .final-cta { text-align: center; padding: 5rem 1.5rem 6rem; }
+      .final-cta h2 { font-size: 1.75rem; font-weight: 700; color: oklch(0.95 0 0); margin-bottom: 0.625rem; }
+      .final-cta p { color: oklch(0.6 0 0); font-size: 0.9375rem; margin-bottom: 2rem; }
+      .badge-tease { display: flex; justify-content: center; gap: 0.75rem; margin-top: 2rem; }
+      .badge-icon {
+        width: 40px; height: 40px; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;
+        border: 1px solid oklch(1 0 0 / 6%); backdrop-filter: blur(4px); transition: all 0.2s;
+      }
+      .badge-icon:hover { border-color: oklch(0.65 0.281 293 / 30%); transform: translateY(-2px); }
+      .badge-tease-text { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: oklch(0.45 0 0); letter-spacing: 0.05em; margin-top: 1rem; }
+
+      /* ── Footer ── */
+      footer { text-align: center; padding: 3rem 1.5rem; border-top: 1px solid oklch(1 0 0 / 4%); }
+      footer .brand { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: oklch(0.45 0 0); margin-bottom: 0.75rem; }
+      footer nav { display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; }
+      footer nav a { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: oklch(0.4 0 0); transition: color 0.15s; }
+      footer nav a:hover { color: oklch(0.7 0.2 293); }
+
+      @media (max-width: 768px) {
+        .hero h1 { font-size: 2rem; }
+        .hero { padding: 7rem 1.25rem 2rem; }
+        .preview-content { grid-template-columns: 1fr; }
+        .pipeline { grid-template-columns: repeat(3, 1fr); }
+        .how-grid { grid-template-columns: 1fr; }
+        .pg-inner { grid-template-columns: 1fr; gap: 1.5rem; }
+        .topnav nav { display: none; }
+        .orb-1 { width: 300px; height: 300px; }
+        .orb-2 { width: 250px; height: 250px; }
+        .orb-3 { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Atmospheric layers -->
+    <div class="bg-grid"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+
+    <div class="page-content">
+
+    <!-- Navbar -->
+    <header class="topnav">
+      <a href="/" class="logo">LearnRAG</a>
+      <nav style="display: flex; gap: 2rem;">
+        <a href="/learn/1-why-rag/" class="active">Learn</a>
+        <a href="/playground/">Playground</a>
+        <a href="/labs/1-langchain-chromadb/">Labs</a>
+        <a href="/library/model-leaderboard/">Library</a>
+      </nav>
+      <button style="background: none; border: none; color: oklch(0.6 0 0); cursor: pointer; padding: 0.5rem;">
+        <span class="material-symbols-outlined">search</span>
+      </button>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="micro">Free · No Setup · In Your Browser</div>
+      <h1>Build a <span class="gradient-text">RAG app</span>.<br/>Right here. Right now.</h1>
+      <p class="sub">Go from zero to a working AI chatbot over your own documents — with interactive demos, real code, and no signup required.</p>
+      <div class="ctas">
+        <a href="/learn/1-why-rag/" class="btn-primary">
+          Start Building
+          <span class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span>
+        </a>
+        <a href="/playground/" class="btn-outline">Try the Playground</a>
+        <a href="#curriculum" class="btn-outline">Curriculum</a>
+      </div>
+      <div class="trust">Free forever · No account needed · Open source</div>
+    </section>
+
+    <!-- Product Preview -->
+    <div class="preview">
+      <div class="preview-frame">
+        <div class="preview-chrome">
+          <div class="preview-dot" style="background: #f87171;"></div>
+          <div class="preview-dot" style="background: #fbbf24;"></div>
+          <div class="preview-dot" style="background: #4ade80;"></div>
+          <span style="flex:1; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: oklch(0.45 0 0); letter-spacing: 0.08em; text-transform: uppercase;">LearnRAG Playground</span>
+        </div>
+        <div class="preview-content">
+          <div class="preview-panel">
+            <h4>
+              <span class="material-symbols-outlined" style="font-size: 14px; margin-right: 4px;">upload</span>
+              Ingest & Embed
+            </h4>
+            <div class="chunk-card" style="background: oklch(0.65 0.281 293 / 5%); border-color: oklch(0.65 0.281 293); color: oklch(0.6 0 0);">
+              "RAG combines retrieval with generation to produce grounded answers..."
+            </div>
+            <div class="chunk-card" style="background: rgba(74,222,128,0.05); border-color: #4ade80; color: oklch(0.6 0 0);">
+              "Vector databases store embeddings for fast similarity search..."
+            </div>
+            <div class="chunk-card" style="background: rgba(251,191,36,0.05); border-color: #fbbf24; color: oklch(0.6 0 0);">
+              "Chunking splits documents into pieces the AI can process..."
+            </div>
+            <div style="margin-top: 0.75rem; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #4ade80;">
+              <span class="material-symbols-outlined" style="font-size: 12px;">check_circle</span> 3 chunks embedded (384 dim)
+            </div>
+          </div>
+          <div class="preview-panel">
+            <h4>
+              <span class="material-symbols-outlined" style="font-size: 14px; margin-right: 4px;">search</span>
+              Retrieve
+            </h4>
+            <div style="padding: 0.5rem 0.625rem; background: oklch(0.14 0.005 285 / 50%); border: 1px solid oklch(1 0 0 / 6%); border-radius: 0.5rem; margin-bottom: 0.75rem; font-size: 12px; color: oklch(0.8 0 0);">
+              How does RAG reduce hallucinations?
+            </div>
+            <div class="result-card">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                <span style="color: #4ade80; font-weight: 600;">#1</span>
+                <span class="score-pill" style="background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2);">0.891</span>
+              </div>
+              <div style="color: oklch(0.6 0 0);">"RAG combines retrieval with generation to produce grounded answers..."</div>
+            </div>
+            <div class="result-card">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                <span style="color: oklch(0.7 0.2 293); font-weight: 600;">#2</span>
+                <span class="score-pill" style="background: oklch(0.65 0.281 293 / 5%); color: oklch(0.7 0.2 293); border: 1px solid oklch(0.65 0.281 293 / 20%);">0.743</span>
+              </div>
+              <div style="color: oklch(0.6 0 0);">"Vector databases store embeddings for fast similarity search..."</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="preview-caption">The Playground — ingest, embed, search, and generate in your browser</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- What You'll Build -->
+    <section class="section section-narrow">
+      <div class="section-label">The Project</div>
+      <h2 class="section-h2">One course. One project. A working RAG chatbot.</h2>
+      <p class="section-sub">Every chapter builds the same thing: a chatbot that answers questions about your own documents — with cited sources and zero hallucinations.</p>
+      <div class="pipeline">
+        {steps.map(s => (
+          <div class="pipeline-step">
+            <div class="step-label">{s.label}</div>
+            <div class="step-ch">{s.ch}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- How It Works -->
+    <section class="section section-narrow">
+      <div class="section-label">How It Works</div>
+      <div class="how-grid">
+        <div class="how-card">
+          <div class="step-num">01</div>
+          <h3>Learn the concept</h3>
+          <p>Plain English explanations with zero jargon. Every technical term defined on first use. Real-world analogies before formulas.</p>
+        </div>
+        <div class="how-card">
+          <div class="step-num">02</div>
+          <h3>Try it live</h3>
+          <p>Every concept has an interactive demo. Chunk your own text, explore vector space, compare retrieval strategies — in your browser.</p>
+        </div>
+        <div class="how-card">
+          <div class="step-num">03</div>
+          <h3>Prove you understand</h3>
+          <p>Answer quick checks, earn badges, track your progress locally. No account needed. No grading. Just mastery.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Curriculum -->
+    <section class="section section-narrow" id="curriculum">
+      <div class="section-label">Curriculum</div>
+      <h2 class="section-h2">8 chapters. From "what is RAG" to production patterns.</h2>
+      <p class="section-sub">~2.5 hours total. Every chapter has a live interactive demo.</p>
+      <div class="curriculum-list">
+        {chapters.map(ch => (
+          <a href={ch.href}>
+            <div class="curriculum-row">
+              <span class="curriculum-num">{ch.num}</span>
+              <span class="curriculum-title">{ch.title}</span>
+              <span class="curriculum-time">{ch.time}</span>
+              <span class="curriculum-badge" style={`color: ${badgeColors[ch.color].text}; background: ${badgeColors[ch.color].bg}; border: 1px solid ${badgeColors[ch.color].border};`}>
+                {ch.badge}
+              </span>
+            </div>
+          </a>
+        ))}
+      </div>
+      <div style="margin-top: 1rem;">
+        <a href="/labs/1-langchain-chromadb/" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #4ade80; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s;">
+          + 3 hands-on labs with real Python code
+          <span class="material-symbols-outlined" style="font-size: 14px;">arrow_forward</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- Playground CTA -->
+    <section class="pg-section">
+      <div class="pg-inner">
+        <div>
+          <div class="section-label">The Playground</div>
+          <h2>The fastest way to understand RAG.</h2>
+          <p>Upload text, watch it get chunked, see embeddings form, run similarity search, and generate answers — all in your browser, with no API keys and no setup.</p>
+          <a href="/playground/" class="btn-primary" style="display: inline-flex;">
+            Open the Playground
+            <span class="material-symbols-outlined" style="font-size: 18px;">arrow_forward</span>
+          </a>
+        </div>
+        <div class="pg-visual">
+          <div style="margin-bottom: 0.75rem; color: oklch(0.6 0 0); display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;">
+            <span class="material-symbols-outlined" style="font-size: 14px; color: oklch(0.7 0.2 293);">upload</span> Ingest
+            <span style="color: oklch(0.3 0 0);">→</span>
+            <span class="material-symbols-outlined" style="font-size: 14px; color: #4ade80;">search</span> Retrieve
+            <span style="color: oklch(0.3 0 0);">→</span>
+            <span class="material-symbols-outlined" style="font-size: 14px; color: #fbbf24;">auto_awesome</span> Generate
+          </div>
+          <div style="border-top: 1px solid oklch(1 0 0 / 6%); padding-top: 0.75rem; font-size: 11px; line-height: 1.8; color: oklch(0.5 0 0);">
+            <div><span style="color: #4ade80;">✓</span> In-browser embeddings via Transformers.js</div>
+            <div><span style="color: #4ade80;">✓</span> No API keys required</div>
+            <div><span style="color: #4ade80;">✓</span> See every intermediate step</div>
+            <div><span style="color: #4ade80;">✓</span> Failure mode demos included</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Proof -->
+    <div class="proof">Open source · Sourced from 13 research papers · Built with Astro + Transformers.js</div>
+
+    <div class="divider"></div>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+      <h2>Ready to <span class="gradient-text">build</span>?</h2>
+      <p>No signup. No setup. Just start.</p>
+      <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+        <a href="/learn/1-why-rag/" class="btn-primary">
+          Start Building
+          <span class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span>
+        </a>
+        <a href="/playground/" class="btn-outline">Open Playground</a>
+      </div>
+      <div class="badge-tease">
+        <div class="badge-icon" style="background: oklch(0.65 0.281 293 / 5%);">
+          <span class="material-symbols-outlined" style="font-size: 18px; color: oklch(0.6 0 0);">search</span>
+        </div>
+        <div class="badge-icon" style="background: oklch(0.65 0.281 293 / 5%);">
+          <span class="material-symbols-outlined" style="font-size: 18px; color: oklch(0.7 0.2 293);">construction</span>
+        </div>
+        <div class="badge-icon" style="background: rgba(74,222,128,0.05);">
+          <span class="material-symbols-outlined" style="font-size: 18px; color: #4ade80;">bolt</span>
+        </div>
+        <div class="badge-icon" style="background: rgba(251,191,36,0.05);">
+          <span class="material-symbols-outlined" style="font-size: 18px; color: #fbbf24;">domain</span>
+        </div>
+      </div>
+      <div class="badge-tease-text">Earn all four badges by building a complete RAG pipeline.</div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="brand">LearnRAG · The Open Curriculum</div>
+      <nav>
+        <a href="/learn/1-why-rag/">Start Learning</a>
+        <a href="/playground/">Playground</a>
+        <a href="/library/model-leaderboard/">Library</a>
+        <a href="/labs/1-langchain-chromadb/">Labs</a>
+      </nav>
+    </footer>
+
+    </div><!-- /page-content -->
+  </body>
+</html>

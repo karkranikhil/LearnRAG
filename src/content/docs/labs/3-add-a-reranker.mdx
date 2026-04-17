@@ -1,0 +1,352 @@
+---
+title: "Lab 3: Add a Re-ranker"
+description: "Improve your RAG retrieval quality by adding a cross-encoder re-ranker. See the difference it makes with real examples."
+---
+
+<div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; background: rgba(74,222,128,0.05); border: 1px solid rgba(74,222,128,0.15); border-radius: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4ade80; background: rgba(74,222,128,0.1); padding: 0.125rem 0.5rem; border-radius: 9999px;">HANDS-ON LAB</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">~25 minutes</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">Intermediate</span>
+  <span style="font-size: 0.8125rem; color: #4ade80;">Engineer badge</span>
+</div>
+
+Your RAG pipeline retrieves chunks. But are they the *best* chunks? Probably not.
+
+Semantic search using embeddings is fast and good enough for many cases. But it has a weakness: it encodes the query and each document *independently*. The query vector and the document vector never "see" each other during encoding. This means subtle relevance signals get missed.
+
+A re-ranker fixes this. It takes the query and each candidate document *together*, reads them side by side, and decides how relevant that document truly is. It is slower, but dramatically more accurate.
+
+This lab adds a re-ranker to the pipeline you built in Lab 1. You will see the difference with real examples.
+
+---
+
+## How Re-ranking Works (Quick Review)
+
+Think of retrieval as a two-stage hiring process:
+
+1. **Stage 1: Resume screening (semantic search).** Fast. Looks at each resume independently. Gets you a shortlist of 20 candidates who seem relevant.
+
+2. **Stage 2: Interview (re-ranking).** Slow. Evaluates each candidate in the context of the specific job. Picks the top 3 who are actually the best fit.
+
+In RAG terms:
+
+- Stage 1: Embed the query, find the top 20 most similar chunks via cosine similarity. Fast because it is just math on pre-computed vectors.
+- Stage 2: Feed each of those 20 chunks *paired with the query* through a cross-encoder model. The cross-encoder outputs a relevance score. Sort by that score. Take the top 3.
+
+The cross-encoder is more accurate because it sees the query and document together — it can catch nuances that independent embeddings miss.
+
+---
+
+## Prerequisites
+
+You need the pipeline from Lab 1 working. If you have not done Lab 1, go do it first.
+
+You also need `sentence-transformers`, which you already installed in Lab 1:
+
+```python
+pip install sentence-transformers
+```
+
+That is it. The cross-encoder model runs locally, no API key needed.
+
+---
+
+## Step 1: Set Up Your Pipeline (Quick Recap)
+
+Let us get the Lab 1 pipeline running so we have something to re-rank. If you still have your vector store from Lab 1, you can skip the ingestion and just load it.
+
+```python
+from langchain_community.document_loaders import TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+
+# Load and chunk
+loader = TextLoader("notes.txt")
+documents = loader.load()
+
+splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+chunks = splitter.split_documents(documents)
+
+# Embed and store
+embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+vectorstore = Chroma.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    persist_directory="./my_vectorstore"
+)
+
+print(f"Pipeline ready with {len(chunks)} chunks")
+```
+
+---
+
+## Step 2: Retrieve Candidates (Stage 1)
+
+First, run a broad semantic search. Get more candidates than you actually need — the re-ranker will narrow them down.
+
+```python
+query = "What are the key benefits mentioned in the document?"
+
+# Get top 20 candidates (more than we need — the re-ranker will pick the best)
+candidates = vectorstore.similarity_search_with_score(query, k=20)
+
+print(f"Stage 1: Retrieved {len(candidates)} candidates via semantic search\n")
+for i, (doc, score) in enumerate(candidates[:5]):
+    print(f"  #{i+1} (distance: {score:.4f}): {doc.page_content[:80]}...")
+```
+
+Notice the similarity scores. They give you a rough ranking, but some of the top results might not actually be the most relevant when you read them carefully. That is the gap re-ranking fills.
+
+---
+
+## Step 3: Re-rank with a Cross-Encoder (Stage 2)
+
+Now load a cross-encoder model and use it to re-score each candidate.
+
+```python
+from sentence_transformers import CrossEncoder
+
+# This model is specifically trained for relevance ranking
+# First run downloads it (~50MB), then it is cached
+reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
+# Prepare pairs of (query, document) for the cross-encoder
+pairs = [(query, doc.page_content) for doc, score in candidates]
+
+# Score each pair
+rerank_scores = reranker.predict(pairs)
+
+print("Stage 2: Cross-encoder scores computed\n")
+```
+
+The cross-encoder takes each (query, document) pair and returns a single relevance score. Higher means more relevant.
+
+---
+
+## Step 4: Sort by Re-ranked Scores and Take Top 3
+
+```python
+# Combine candidates with their new scores
+reranked = list(zip(candidates, rerank_scores))
+
+# Sort by cross-encoder score (highest first)
+reranked.sort(key=lambda x: x[1], reverse=True)
+
+# Take top 3
+top_results = reranked[:3]
+
+print("Final results after re-ranking:\n")
+for i, ((doc, original_score), rerank_score) in enumerate(top_results):
+    print(f"--- Result {i+1} ---")
+    print(f"  Re-rank score: {rerank_score:.4f}")
+    print(f"  Original distance: {original_score:.4f}")
+    print(f"  Text: {doc.page_content[:150]}...")
+    print()
+```
+
+---
+
+## Step 5: Compare Before and After
+
+This is the important part. Let us see the difference side by side.
+
+```python
+def compare_retrieval(query, vectorstore, reranker, k_candidates=20, k_final=3):
+    """Run both retrieval methods and compare results."""
+
+    # Stage 1: Semantic search only
+    semantic_results = vectorstore.similarity_search(query, k=k_final)
+
+    # Stage 1 + 2: Semantic search + re-ranking
+    candidates = vectorstore.similarity_search_with_score(query, k=k_candidates)
+    pairs = [(query, doc.page_content) for doc, score in candidates]
+    rerank_scores = reranker.predict(pairs)
+    reranked = sorted(
+        zip(candidates, rerank_scores),
+        key=lambda x: x[1],
+        reverse=True
+    )
+    reranked_results = [doc for (doc, _), _ in reranked[:k_final]]
+
+    # Display comparison
+    print(f"Query: {query}\n")
+
+    print("=== Semantic Search Only (Top 3) ===")
+    for i, doc in enumerate(semantic_results):
+        print(f"  {i+1}. {doc.page_content[:100]}...")
+
+    print("\n=== With Re-ranking (Top 3) ===")
+    for i, doc in enumerate(reranked_results):
+        print(f"  {i+1}. {doc.page_content[:100]}...")
+
+    # Check if results changed
+    semantic_texts = [d.page_content for d in semantic_results]
+    reranked_texts = [d.page_content for d in reranked_results]
+
+    if semantic_texts == reranked_texts:
+        print("\n> Results are the same — re-ranking agreed with semantic search.")
+    else:
+        changed = sum(1 for t in reranked_texts if t not in semantic_texts)
+        print(f"\n> Re-ranking changed {changed} of {k_final} results.")
+
+    return semantic_results, reranked_results
+
+
+# Try it with different queries
+compare_retrieval(
+    "What are the key benefits mentioned?",
+    vectorstore, reranker
+)
+
+print("\n" + "="*60 + "\n")
+
+compare_retrieval(
+    "Are there any risks or downsides discussed?",
+    vectorstore, reranker
+)
+```
+
+---
+
+## Putting It All Together: Re-ranked RAG Chain
+
+Here is the complete pipeline with re-ranking built in, ready for generation:
+
+```python
+from langchain_community.document_loaders import TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from sentence_transformers import CrossEncoder
+
+
+class RerankedRetriever:
+    """A retriever that uses semantic search + cross-encoder re-ranking."""
+
+    def __init__(self, vectorstore, reranker_model, k_candidates=20, k_final=3):
+        self.vectorstore = vectorstore
+        self.reranker = CrossEncoder(reranker_model)
+        self.k_candidates = k_candidates
+        self.k_final = k_final
+
+    def retrieve(self, query):
+        # Stage 1: Broad semantic search
+        candidates = self.vectorstore.similarity_search(
+            query, k=self.k_candidates
+        )
+
+        if len(candidates) == 0:
+            return []
+
+        # Stage 2: Re-rank with cross-encoder
+        pairs = [(query, doc.page_content) for doc in candidates]
+        scores = self.reranker.predict(pairs)
+
+        # Sort by score and return top results
+        scored = sorted(
+            zip(candidates, scores),
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+        return [doc for doc, score in scored[:self.k_final]]
+
+
+# --- Set up the pipeline ---
+loader = TextLoader("notes.txt")
+documents = loader.load()
+
+splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+chunks = splitter.split_documents(documents)
+
+embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+vectorstore = Chroma.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    persist_directory="./my_vectorstore"
+)
+
+# --- Create the re-ranked retriever ---
+retriever = RerankedRetriever(
+    vectorstore=vectorstore,
+    reranker_model="cross-encoder/ms-marco-MiniLM-L-6-v2",
+    k_candidates=20,
+    k_final=3
+)
+
+# --- Query ---
+query = "What is the most important point in this document?"
+results = retriever.retrieve(query)
+
+print(f"Query: {query}\n")
+print(f"Top {len(results)} results after re-ranking:\n")
+for i, doc in enumerate(results):
+    print(f"--- Result {i+1} ---")
+    print(doc.page_content)
+    print()
+
+# You can feed these results into any LLM for generation,
+# exactly like you did in Lab 1 Step 6.
+```
+
+---
+
+## When Re-ranking Helps Most
+
+Re-ranking is not free. It adds latency. Here is when it is worth it and when it is not.
+
+### Re-ranking helps a lot when:
+
+- **Queries are ambiguous.** "Tell me about security" could mean cybersecurity, financial securities, or a security guard. The cross-encoder reads the query and chunk together, so it catches which meaning you intended.
+- **Your chunks contain similar-looking but different content.** If you have 50 chunks about different products, semantic search might pick chunks from the wrong product. The re-ranker reads more carefully.
+- **Precision matters more than recall.** When the top 3 results must be highly relevant (for example, when the answer will be shown to a customer).
+- **You have enough candidates.** Re-ranking 20 candidates into 3 works well. Re-ranking 5 into 3 barely helps.
+
+### Re-ranking is unnecessary when:
+
+- **Your queries are very specific.** If the user types "What was the Q3 2024 revenue?", semantic search will nail this. The re-ranker adds cost without much benefit.
+- **Your document collection is small.** If you only have 20 chunks total, semantic search over 20 chunks is already thorough.
+- **Latency is critical.** The cross-encoder adds 50-200ms per query depending on the number of candidates and your hardware. For real-time chat, this matters.
+
+---
+
+## Performance Considerations
+
+| Factor | Semantic Search Only | With Re-ranking |
+|---|---|---|
+| **Latency (20 chunks)** | ~10ms | ~60ms |
+| **Latency (100 chunks)** | ~15ms | ~250ms |
+| **Model memory** | Embedding model only (~90MB) | + Cross-encoder (~80MB) |
+| **Quality (ambiguous queries)** | Good | Significantly better |
+| **Quality (specific queries)** | Good | Marginally better |
+
+The key insight: retrieve broadly in Stage 1 (fast, cheap), then re-rank a small set in Stage 2 (slow, accurate). You never run the cross-encoder over your entire document collection — that would be far too slow.
+
+---
+
+## Cross-Encoder Models to Try
+
+| Model | Size | Quality | Speed |
+|---|---|---|---|
+| `cross-encoder/ms-marco-MiniLM-L-6-v2` | 80MB | Good | Fast |
+| `cross-encoder/ms-marco-MiniLM-L-12-v2` | 130MB | Better | Medium |
+| `BAAI/bge-reranker-base` | 440MB | Very good | Slower |
+| `BAAI/bge-reranker-large` | 1.3GB | Excellent | Slow |
+
+Start with `ms-marco-MiniLM-L-6-v2`. It is small, fast, and good enough for most use cases. Move to `bge-reranker-base` if you need higher quality and can tolerate the latency.
+
+---
+
+## What You Built
+
+You added a second stage to your retrieval pipeline:
+
+1. **Stage 1 (unchanged):** Semantic search finds 20 rough candidates fast.
+2. **Stage 2 (new):** A cross-encoder re-ranker evaluates each candidate in context and picks the 3 most relevant.
+
+This is the same retrieve-then-rerank pattern used by search engines, recommendation systems, and production RAG pipelines. It is one of the highest-impact improvements you can make to retrieval quality.
+
+---
+
+**Next up:** [Lab 4: Evaluate with RAGAS](/labs/4-evaluate-with-ragas/) — Now that your retrieval is better, learn how to measure *how much* better it actually is.

@@ -1,0 +1,245 @@
+---
+title: "Why RAG Exists"
+description: "Learn why Retrieval-Augmented Generation was invented, how it solves the hallucination problem, and when to use it instead of fine-tuning."
+---
+
+import ChapterProgress from '../../../components/react/ChapterProgress';
+import HallucinationToggle from '../../../components/react/HallucinationToggle';
+import MermaidDiagram from '../../../components/react/MermaidDiagram';
+import GlossaryTooltip from '../../../components/react/GlossaryTooltip';
+import QuickCheck from '../../../components/react/QuickCheck';
+import Callout from '../../../components/react/Callout';
+import FeedbackWidget from '../../../components/react/FeedbackWidget';
+
+<ChapterProgress client:load chapterNumber={1} badge="explorer" readTime={12} />
+
+> *Your AI is trained on yesterday's news. RAG is how you plug it into today.*
+
+**After this chapter, you'll be able to:** Explain what RAG is, why it exists, and when to use it instead of fine-tuning — in plain English.
+
+---
+
+## The Two Problems with AI Today
+
+<GlossaryTooltip client:load term="LLM">Large Language Models</GlossaryTooltip> like GPT-4 and Claude are incredibly powerful. They can write code, explain quantum physics, and draft legal contracts. But they have two fundamental problems that make them unreliable for real-world applications.
+
+### Problem 1: The Memory Cutoff
+
+Every LLM has a training cutoff date. Everything it knows comes from the text it was trained on. Ask it about something that happened after that date, and it simply doesn't know. [src: lewis2020, §1]
+
+This isn't a minor limitation. If you're building a customer support bot, the AI doesn't know about your latest product update. If you're building a legal research tool, it doesn't know about last month's court ruling. The world changes daily — your AI's knowledge doesn't.
+
+### Problem 2: Hallucinations
+
+Here's the scarier problem: when an LLM doesn't know something, it doesn't say "I don't know." Instead, it **makes something up** — confidently, fluently, and convincingly. This is called a <GlossaryTooltip client:load term="hallucination">hallucination</GlossaryTooltip>.
+
+A hallucinating AI will invent statistics, fabricate quotes, and cite papers that don't exist. It does this because it's optimised to produce fluent text, not truthful text. [src: lewis2020, §1]
+
+---
+
+## See It For Yourself
+
+Don't take our word for it. Toggle between an AI with and without RAG and watch what happens.
+
+<HallucinationToggle client:visible />
+
+---
+
+## What RAG Actually Does
+
+<GlossaryTooltip client:load term="RAG">RAG</GlossaryTooltip> stands for **Retrieval-Augmented Generation**. In one sentence:
+
+> **Find the right documents first, then ask the AI to answer using only those documents.**
+
+<Callout type="plain-english">RAG is an open-book exam for AI — instead of memorising everything, it looks up the right notes before answering.</Callout>
+
+That's it. The entire idea is that simple.
+
+### The Open-Book Exam Analogy
+
+Think about two ways to take an exam:
+
+- **Closed-book (fine-tuning):** You memorise the entire textbook beforehand. You might remember most things, but you'll misremember details and you can't learn new material without re-studying everything.
+- **Open-book (RAG):** You bring the textbook to the exam. When you get a question, you look up the relevant pages first, then write your answer based on what you just read.
+
+RAG is the open-book approach. The AI doesn't need to have memorised your company's docs — it just needs to be able to look them up when asked.
+
+### The RAG Pipeline in Three Steps
+
+1. **Retrieve** — Search your document collection for chunks relevant to the user's question
+2. **Augment** — Add those chunks to the AI's prompt as context
+3. **Generate** — The AI writes an answer grounded in the retrieved information
+
+<MermaidDiagram client:visible chart={`flowchart LR
+    Q[User Question] --> R[Retrieve]
+    R --> |Top chunks| A[Augment Prompt]
+    A --> G[Generate Answer]
+    D[(Document Store)] --> R
+    style Q fill:#3B82F6,color:#fff
+    style R fill:#22C55E,color:#fff
+    style A fill:#F59E0B,color:#000
+    style G fill:#EF4444,color:#fff
+    style D fill:#1A1D27,color:#e2e8f0,stroke:#2D3148`}
+  caption="The RAG pipeline: Retrieve relevant documents, augment the prompt, generate a grounded answer."
+/>
+
+---
+
+## RAG vs. Fine-Tuning
+
+Both RAG and <GlossaryTooltip client:load term="fine-tuning">fine-tuning</GlossaryTooltip> solve the "my AI doesn't know about X" problem. But they solve it in very different ways.
+
+| | RAG | Fine-Tuning |
+|---|---|---|
+| **How it works** | Looks up documents at query time | Retrains the model on your data |
+| **Cost** | Low — just search + API calls | High — GPU hours for training |
+| **Update speed** | Instant — add new docs anytime | Slow — retrain needed for new data |
+| **Hallucination control** | High — answers cite sources | Medium — model may still hallucinate |
+| **Best for** | Knowledge bases, docs, FAQs | Changing the model's writing style or behaviour |
+
+**The rule of thumb:** If you need the AI to *know specific facts*, use RAG. If you need the AI to *behave differently*, use fine-tuning. Many production systems use both. [src: lewis2020, §5]
+
+<Callout type="tip">Start with RAG. It is cheaper, faster to set up, and easier to update than fine-tuning. Only add fine-tuning later if you need to change the model's tone or behaviour.</Callout>
+
+<MermaidDiagram client:visible chart={`flowchart TB
+    subgraph FT["Fine-Tuning"]
+        direction TB
+        D1[Your Data] --> T[Retrain Model]
+        T --> M1[Updated Model]
+        M1 --> A1[Answer from memory]
+    end
+    subgraph RAG_Pipeline["RAG"]
+        direction TB
+        D2[Your Data] --> S[Store as Documents]
+        Q[Question] --> R[Retrieve Relevant Docs]
+        S --> R
+        R --> P[Add to Prompt]
+        P --> A2[Answer from evidence]
+    end
+    style FT fill:#1A1D27,color:#e2e8f0,stroke:#F59E0B
+    style RAG_Pipeline fill:#1A1D27,color:#e2e8f0,stroke:#22C55E`}
+  caption="Fine-tuning memorises your data. RAG looks it up on demand."
+/>
+
+---
+
+## When Should You Use RAG?
+
+**Use RAG when:**
+
+- Your data changes frequently (product docs, knowledge bases, news)
+- You need the AI to cite its sources
+- You want to control exactly what information the AI has access to
+- You need answers grounded in specific documents
+- You want to avoid the cost of model training
+
+**Consider fine-tuning when:**
+
+- You need the AI to adopt a specific tone or persona
+- You want to change *how* the AI responds, not *what* it knows
+- Your data is static and well-defined
+
+---
+
+## Common Misconceptions About RAG
+
+These are the questions that confuse almost every beginner. If any of these have been in your head, you're in good company.
+
+**"Can't I just give the AI a huge context window instead?"**
+
+Modern models like Gemini 1.5 Pro and Claude 3.5 Sonnet have context windows of 100k–1M tokens. Why not just paste your entire knowledge base and skip RAG entirely?
+
+Two reasons: cost and quality. Sending a million tokens with every request costs real money — at $3 per million input tokens, a 500k-token context costs $1.50 *per query*. At scale, that's unsustainable. More importantly, research consistently shows LLMs lose focus in very long contexts — the "lost in the middle" effect means information buried in the middle of a huge context is often ignored. [src: liu2023lost] RAG retrieves only the 3–5 most relevant chunks, keeping costs low and attention sharp.
+
+**"Does RAG eliminate hallucinations completely?"**
+
+No — but it reduces them dramatically. RAG gives the AI a source to cite and ground its answer in. However, if the retrieved chunks are irrelevant (a retrieval problem) or the prompt doesn't instruct the model to stay faithful to the source (a prompting problem), the model can still hallucinate. Chapters 5–7 cover how to measure and reduce this.
+
+**"Is RAG the same as a search engine?"**
+
+The retrieval step in RAG is a form of search — but it's semantic search, not keyword search. A traditional search engine like Elasticsearch looks for matching words. RAG retrieves by *meaning*, so "return policy" and "refund process" match each other even with zero word overlap. The generation step (where the LLM writes an answer using the retrieved text) is what separates RAG from pure search.
+
+**"Do I need a vector database to do RAG?"**
+
+For learning and small projects: no. You can store embeddings in a simple JSON file or NumPy array and compute similarity with a few lines of code. For production systems with thousands of documents: yes, a vector database like ChromaDB or Qdrant becomes essential for performance. Chapter 4 covers when you actually need one.
+
+---
+
+## RAG in the Real World
+
+RAG is not a niche technique — it powers some of the most widely used AI products:
+
+- **Customer support bots** at companies like Intercom and Zendesk use RAG over their help documentation, so the AI only answers with documented facts.
+- **Legal and compliance tools** use RAG over contracts and regulations so lawyers can query the actual document text, not the model's memory of similar documents.
+- **Developer tools** like GitHub Copilot Chat use retrieval over your local codebase context so responses are grounded in your actual code.
+- **Internal knowledge bases** are the most common enterprise use case: RAG over your company's Notion, Confluence, or Slack — so employees can ask "what's our parental leave policy?" and get a cited answer.
+
+The pattern is always the same: *private or frequently-updated information that an LLM can't know from training → perfect RAG use case*.
+
+---
+
+## How Long Does It Take to Build?
+
+This is a real question, so here's a real answer.
+
+A basic RAG pipeline — ingest a document, embed it, retrieve chunks, generate an answer — takes about 30 lines of Python and 15 minutes to get working using LangChain + ChromaDB + the OpenAI API. That's what Lab 1 walks you through.
+
+A production-quality system — with evaluation, re-ranking, metadata filtering, error handling, and a UI — takes weeks to months, depending on your data complexity and quality requirements.
+
+This course gets you from zero to "working demo" in the chapters, and from "working demo" to "production-ready" in the labs. By the end, you'll know exactly which decisions matter at scale and which don't.
+
+---
+
+## What You're Building
+
+Throughout this course, you'll build one thing: **a RAG chatbot over your own notes**. Every chapter adds a piece to the puzzle.
+
+By the end, you'll have a working pipeline that:
+
+1. Takes your text files
+2. Splits them into searchable chunks
+3. Converts those chunks into vectors
+4. Finds the most relevant chunks for any question
+5. Generates an accurate, cited answer
+
+This chapter was the "why." Next, we start building — beginning with how to prepare your documents.
+
+---
+
+## Quick Check
+
+<QuickCheck client:visible chapterId="1-why-rag" questions={[
+  {
+    question: "What is the main advantage of RAG over fine-tuning for knowledge that changes frequently?",
+    options: [
+      "RAG produces longer answers",
+      "RAG can be updated instantly without retraining the model",
+      "RAG uses less memory",
+      "RAG works without an internet connection"
+    ],
+    correct: 1,
+    explanation: "RAG retrieves documents at query time, so you can add or update documents without any model retraining. Fine-tuning requires expensive retraining whenever knowledge changes."
+  },
+  {
+    question: "What is a 'hallucination' in the context of AI?",
+    options: [
+      "When the AI refuses to answer a question",
+      "When the AI generates code instead of text",
+      "When the AI confidently generates false information",
+      "When the AI takes too long to respond"
+    ],
+    correct: 2,
+    explanation: "A hallucination is when an AI generates information that sounds plausible but is factually incorrect, and presents it with confidence. RAG reduces this by grounding answers in real documents."
+  }
+]} />
+
+---
+
+<FeedbackWidget client:visible chapterId="1-why-rag" />
+
+---
+
+**Sources:**
+
+- Lewis et al. (2020) — [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://arxiv.org/abs/2005.11401) [NeurIPS 2020]
+- [Anthropic documentation](https://docs.anthropic.com/) on context windows and model limitations

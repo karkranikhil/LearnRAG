@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vector Database Indexing — Developer Documentation</title>
+  <meta name="description" content="Developer guide covering HNSW, IVF, and flat indexing strategies for vector databases. Includes key parameters and tuning guidance for ChromaDB, Qdrant, and FAISS." />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; }
+
+    /* Top banner */
+    .gov-banner { background: #1e293b; color: #94a3b8; font-size: 0.6875rem; padding: 0.375rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .gov-banner span { color: #e2e8f0; font-weight: 600; }
+
+    /* Navigation */
+    .nav { background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 3.5rem; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .nav-logo { font-weight: 700; font-size: 1.125rem; color: #0f172a; display: flex; align-items: center; gap: 0.5rem; }
+    .nav-logo .dot { width: 8px; height: 8px; background: #6366f1; border-radius: 2px; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { font-size: 0.8125rem; color: #64748b; text-decoration: none; font-weight: 500; }
+    .nav-links a:hover { color: #0f172a; }
+    .nav-links a.active { color: #6366f1; border-bottom: 2px solid #6366f1; padding-bottom: 0.875rem; }
+
+    /* Layout */
+    .layout { display: flex; max-width: 1200px; margin: 0 auto; }
+
+    /* Sidebar */
+    .sidebar { width: 260px; padding: 2rem 1.5rem; border-right: 1px solid #e2e8f0; position: sticky; top: 3.5rem; height: calc(100vh - 3.5rem); overflow-y: auto; flex-shrink: 0; }
+    .sidebar h3 { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; margin-bottom: 0.75rem; }
+    .sidebar a { display: block; font-size: 0.8125rem; color: #64748b; text-decoration: none; padding: 0.375rem 0.75rem; border-radius: 0.375rem; margin-bottom: 0.125rem; }
+    .sidebar a:hover { background: #f1f5f9; color: #0f172a; }
+    .sidebar a.active { background: #6366f110; color: #6366f1; font-weight: 600; border-left: 2px solid #6366f1; }
+
+    /* Main content */
+    .content { flex: 1; padding: 2.5rem 3rem; max-width: 760px; }
+    .breadcrumb { font-size: 0.75rem; color: #94a3b8; margin-bottom: 1.5rem; }
+    .breadcrumb a { color: #6366f1; text-decoration: none; }
+    .content h1 { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 0.75rem; color: #0f172a; }
+    .content .meta { font-size: 0.75rem; color: #94a3b8; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #e2e8f0; display: flex; gap: 1rem; }
+    .content h2 { font-size: 1.375rem; font-weight: 600; margin: 2.5rem 0 0.75rem; color: #0f172a; }
+    .content p { margin-bottom: 1rem; line-height: 1.7; color: #475569; }
+    .content ul { padding-left: 1.25rem; margin-bottom: 1rem; }
+    .content li { margin-bottom: 0.5rem; color: #475569; line-height: 1.6; }
+    .content code { background: #f1f5f9; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.8125rem; color: #6366f1; font-family: 'SF Mono', 'Fira Code', monospace; }
+    .content strong { color: #0f172a; }
+
+    /* Callout */
+    .callout { background: #eff6ff; border-left: 3px solid #6366f1; border-radius: 0 0.5rem 0.5rem 0; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+    .callout p { color: #475569; margin: 0; font-size: 0.875rem; }
+
+    /* Footer */
+    .footer { background: #1e293b; color: #94a3b8; padding: 2rem 1.5rem; font-size: 0.75rem; text-align: center; margin-top: 3rem; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .content { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="gov-banner">
+    <span>CloudVector</span> Developer Documentation · v3.2
+  </div>
+
+  <nav class="nav">
+    <div class="nav-logo"><div class="dot"></div> CloudVector Docs</div>
+    <div class="nav-links">
+      <a href="#">Getting Started</a>
+      <a href="#" class="active">Guides</a>
+      <a href="#">API Reference</a>
+      <a href="#">Changelog</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <h3>Vector Databases</h3>
+      <a href="#">Introduction</a>
+      <a href="#">Installation</a>
+      <a href="#" class="active">Indexing Configuration</a>
+      <a href="#">Query Optimization</a>
+      <a href="#">Monitoring</a>
+      <h3 style="margin-top: 1.5rem;">Integrations</h3>
+      <a href="#">LangChain</a>
+      <a href="#">LlamaIndex</a>
+      <a href="#">Python SDK</a>
+    </aside>
+
+    <main class="content">
+      <div class="breadcrumb"><a href="#">Docs</a> / <a href="#">Vector Databases</a> / Indexing Configuration</div>
+      <h1>How to Configure Vector Database Indexing</h1>
+      <div class="meta">
+        <span>Last updated: March 2025</span>
+        <span>5 min read</span>
+        <span>Applies to: ChromaDB, Qdrant, FAISS</span>
+      </div>
+
+      <h2>Overview</h2>
+      <p>Vector database indexing is critical for achieving fast similarity search at scale. This article covers the main indexing strategies and when to use each one. Choosing the right index can mean the difference between sub-millisecond queries and queries that take several seconds.</p>
+
+      <h2>HNSW (Hierarchical Navigable Small World)</h2>
+      <p>HNSW is the most popular indexing algorithm for vector databases. It works by building a multi-layer graph where each layer acts as a "highway" for navigation. The top layers have fewer nodes and allow fast, approximate navigation. The bottom layers have all nodes and allow precise search.</p>
+      <p><strong>Key parameters:</strong></p>
+      <ul>
+        <li><code>M</code>: The number of bi-directional connections per node. Higher M means better recall but more memory. Default: 16.</li>
+        <li><code>efConstruction</code>: Controls index build quality. Higher values create a more accurate index but take longer to build. Default: 200.</li>
+        <li><code>efSearch</code>: Controls query-time accuracy. Higher values return better results but are slower. Default: 100.</li>
+      </ul>
+
+      <div class="callout">
+        <p><strong>Tip:</strong> When M is too low, the graph becomes disconnected and recall drops sharply. When M is too high, memory usage grows linearly and insertion slows.</p>
+      </div>
+
+      <h2>IVF (Inverted File Index)</h2>
+      <p>IVF first clusters the vectors into groups using k-means, then only searches within the most relevant clusters at query time. This is faster than brute-force but requires a training step to build the cluster centroids.</p>
+      <p>The key parameter is <code>nlist</code> (number of clusters). More clusters means faster search but requires more data to train accurately. A common heuristic is <code>nlist = sqrt(N)</code> where N is the total number of vectors.</p>
+
+      <h2>Flat Index (Brute Force)</h2>
+      <p>The simplest approach: compare the query vector against every stored vector. Guarantees perfect recall but scales linearly with dataset size. Only practical for fewer than 50,000 vectors.</p>
+
+      <h2>When to Use What</h2>
+      <p>For most RAG applications with fewer than 10 million vectors, HNSW is the best choice. It offers excellent recall with low latency and no training step. IVF is better for very large datasets (100M+ vectors) where memory is a constraint. Flat index works for prototyping and small datasets.</p>
+
+      <h2>Common Mistakes</h2>
+      <p>The most common mistake is using default parameters without tuning. Increasing <code>efSearch</code> improves recall but adds latency. Always benchmark with your actual data and queries before deploying to production.</p>
+    </main>
+  </div>
+
+  <footer class="footer">
+    Sample documentation page for LearnRAG Playground · CloudVector is a fictional product
+  </footer>
+</body>
+</html>

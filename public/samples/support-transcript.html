@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support Ticket #4821 — Account Login Issue</title>
+  <meta name="description" content="Support ticket #4821 — Customer account locked after five failed login attempts from an unrecognised IP. Resolved via account unlock, password reset, and 2FA enablement." />
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; padding: 2rem; }
+    .container { max-width: 640px; margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #1e293b; }
+    h1 { font-size: 1.25rem; font-weight: 600; color: #f8fafc; }
+    .ticket-id { font-size: 0.75rem; color: #64748b; font-family: monospace; }
+    .status { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.125rem 0.5rem; border-radius: 9999px; background: #22c55e20; color: #4ade80; border: 1px solid #22c55e30; }
+    .meta { font-size: 0.75rem; color: #64748b; margin-bottom: 1.5rem; }
+    .message { display: flex; gap: 0.75rem; margin-bottom: 1rem; padding: 0.875rem; border-radius: 0.75rem; }
+    .message.customer { background: #1e293b; border: 1px solid #334155; }
+    .message.agent { background: #0f172a; border: 1px solid #1e293b; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+    .avatar.customer { background: #3b82f620; color: #60a5fa; }
+    .avatar.agent { background: #22c55e20; color: #4ade80; }
+    .msg-header { font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem; }
+    .msg-header strong { color: #f1f5f9; }
+    .msg-body { font-size: 0.875rem; color: #cbd5e1; }
+    .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #1e293b; font-size: 0.75rem; color: #475569; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>Account Login Issue</h1>
+        <span class="ticket-id">Ticket #4821</span>
+      </div>
+      <span class="status">Resolved</span>
+    </div>
+    <div class="meta">Opened: April 3, 2025 · Customer: john.doe@example.com · Agent: Sarah K.</div>
+
+    <div class="message customer">
+      <div class="avatar customer">JD</div>
+      <div>
+        <div class="msg-header"><strong>John Doe</strong> · 3:15 PM</div>
+        <div class="msg-body">Hi, I'm having trouble with my account. I can't log in since yesterday.</div>
+      </div>
+    </div>
+
+    <div class="message agent">
+      <div class="avatar agent">SK</div>
+      <div>
+        <div class="msg-header"><strong>Sarah K.</strong> · 3:17 PM</div>
+        <div class="msg-body">I'm sorry to hear that. Let me help you with your login issue. Can you tell me what error message you're seeing?</div>
+      </div>
+    </div>
+
+    <div class="message customer">
+      <div class="avatar customer">JD</div>
+      <div>
+        <div class="msg-header"><strong>John Doe</strong> · 3:18 PM</div>
+        <div class="msg-body">It says "Invalid credentials" every time I try, but I'm 100% sure my password is correct. I even checked caps lock.</div>
+      </div>
+    </div>
+
+    <div class="message agent">
+      <div class="avatar agent">SK</div>
+      <div>
+        <div class="msg-header"><strong>Sarah K.</strong> · 3:20 PM</div>
+        <div class="msg-body">I understand how frustrating that can be. Let me check your account status. Could you provide me with the email address associated with your account?</div>
+      </div>
+    </div>
+
+    <div class="message customer">
+      <div class="avatar customer">JD</div>
+      <div>
+        <div class="msg-header"><strong>John Doe</strong> · 3:21 PM</div>
+        <div class="msg-body">Sure, it's john.doe@example.com</div>
+      </div>
+    </div>
+
+    <div class="message agent">
+      <div class="avatar agent">SK</div>
+      <div>
+        <div class="msg-header"><strong>Sarah K.</strong> · 3:24 PM</div>
+        <div class="msg-body">Thank you, John. I can see your account was automatically locked at 3:42 PM yesterday due to five failed login attempts from an unrecognized IP address. This is a security measure to protect your account.</div>
+      </div>
+    </div>
+
+    <div class="message customer">
+      <div class="avatar customer">JD</div>
+      <div>
+        <div class="msg-header"><strong>John Doe</strong> · 3:25 PM</div>
+        <div class="msg-body">Oh wow, that wasn't me trying those times. Should I be worried?</div>
+      </div>
+    </div>
+
+    <div class="message agent">
+      <div class="avatar agent">SK</div>
+      <div>
+        <div class="msg-header"><strong>Sarah K.</strong> · 3:27 PM</div>
+        <div class="msg-body">The attempts came from a different country than your usual login location, so our system flagged it as suspicious. I'd recommend changing your password after I unlock your account. I'll also enable two-factor authentication for you.</div>
+      </div>
+    </div>
+
+    <div class="message customer">
+      <div class="avatar customer">JD</div>
+      <div>
+        <div class="msg-header"><strong>John Doe</strong> · 3:28 PM</div>
+        <div class="msg-body">Yes, please do that. Security is important.</div>
+      </div>
+    </div>
+
+    <div class="message agent">
+      <div class="avatar agent">SK</div>
+      <div>
+        <div class="msg-header"><strong>Sarah K.</strong> · 3:31 PM</div>
+        <div class="msg-body">Done. Your account is now unlocked, and I've sent a 2FA setup link to your email. Your new temporary password is also in that email. Please change it immediately after logging in.</div>
+      </div>
+    </div>
+
+    <div class="message customer">
+      <div class="avatar customer">JD</div>
+      <div>
+        <div class="msg-header"><strong>John Doe</strong> · 3:32 PM</div>
+        <div class="msg-body">Got it. Thank you so much for the quick help!</div>
+      </div>
+    </div>
+
+    <div class="message agent">
+      <div class="avatar agent">SK</div>
+      <div>
+        <div class="msg-header"><strong>Sarah K.</strong> · 3:33 PM</div>
+        <div class="msg-body">You're welcome! Is there anything else I can help you with today?</div>
+      </div>
+    </div>
+
+    <div class="footer">Sample support transcript for LearnRAG Playground</div>
+  </div>
+</body>
+</html>

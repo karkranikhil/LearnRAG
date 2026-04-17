@@ -1,0 +1,184 @@
+---
+title: "Embedding Model Leaderboard"
+description: "Compare popular embedding models by quality, speed, dimensions, and cost. Find the right model for your RAG project."
+---
+
+<div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.15); border-radius: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #b87dff; background: rgba(168,85,247,0.1); padding: 0.125rem 0.5rem; border-radius: 9999px;">REFERENCE</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">Comparison data from MTEB Leaderboard</span>
+</div>
+
+Choosing the right embedding model is one of the most important decisions in your RAG pipeline. A bad model means bad retrieval. Bad retrieval means bad answers. No amount of prompt engineering fixes that.
+
+This page gives you the data to make that decision. No fluff, just numbers and recommendations.
+
+---
+
+## Why Model Choice Matters
+
+All embedding models do the same thing: turn text into a list of numbers (a vector) that captures meaning. But they do it with wildly different quality.
+
+A good model puts "How do I reset my password?" and "Steps to change your login credentials" close together in vector space. A bad model puts them far apart because the words are different — even though the meaning is the same.
+
+The difference between a 60% and 85% retrieval accuracy often comes down to the embedding model. Everything else being equal, a better model retrieves better chunks, and better chunks produce better answers.
+
+---
+
+## The Leaderboard
+
+These models are ranked by their approximate MTEB (Massive Text Embedding Benchmark) retrieval scores. MTEB is the industry-standard benchmark for comparing embedding models across tasks like search, classification, and clustering.
+
+Scores below are approximate and represent the retrieval subset of MTEB. Check the [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) for the latest numbers, as new models are released frequently.
+
+| Model | Provider | Dimensions | MTEB Retrieval (approx) | Speed | Cost | Best For |
+|---|---|---|---|---|---|---|
+| **text-embedding-3-large** | OpenAI | 3072 | ~55 | Fast (API) | $0.13/1M tokens | Production systems with budget |
+| **text-embedding-3-small** | OpenAI | 1536 | ~51 | Fast (API) | $0.02/1M tokens | Cost-effective production |
+| **E5 Large V2** | Microsoft (intfloat) | 1024 | ~50 | Medium (local) | Free (open-source) | General-purpose. Requires "query:"/"passage:" prefix. [Details](https://huggingface.co/intfloat/e5-large-v2) |
+| **Multilingual E5 Large** | Microsoft (intfloat) | 1024 | ~49 | Medium (local) | Free (open-source) | 100+ languages, cross-lingual retrieval. [Details](https://huggingface.co/intfloat/multilingual-e5-large) |
+| **voyage-large-2** | Voyage AI | 1536 | ~55 | Fast (API) | $0.12/1M tokens | Code search, technical docs |
+| **Cohere embed-v3** | Cohere | 1024 | ~54 | Fast (API) | Free tier available | Multilingual, production |
+| **CLIP (ViT-B/32)** | OpenAI | 512 | N/A (multi-modal) | Fast (local) | Free (open-source) | Multi-modal: text + images in same space. [Details](https://openai.com/index/clip/) |
+| **Salesforce SFR V2 Small** | Salesforce | 256 | ~48 | Fast (API) | Salesforce Data Cloud | Compact, optimised for Salesforce RAG. [Details](https://help.salesforce.com/s/articleView?id=data.c360_a_search_index_sfr_v2_small.htm&language=en_us&type=5) |
+| **bge-large-en-v1.5** | BAAI | 1024 | ~54 | Medium (local) | Free (open-source) | Self-hosted production |
+| **gte-large-en-v1.5** | Alibaba | 1024 | ~52 | Medium (local) | Free (open-source) | Self-hosted, general purpose |
+| **nomic-embed-text-v1.5** | Nomic AI | 768 | ~53 | Medium (local) | Free (open-source) | Long documents (8192 token context) |
+| **all-MiniLM-L6-v2** | Sentence Transformers | 384 | ~41 | Very fast (local) | Free (open-source) | Learning, prototyping, in-browser (Playground) |
+| **bge-small-en-v1.5** | BAAI | 384 | ~46 | Very fast (local) | Free (open-source) | In-browser via Transformers.js (Playground) |
+| **gte-small** | Alibaba | 384 | ~44 | Very fast (local) | Free (open-source) | In-browser, multilingual (Playground) |
+
+---
+
+## Understanding the Columns
+
+**Dimensions** — The length of the vector each model produces. Higher dimensions can capture more nuance but use more memory and storage. 384 dimensions is compact. 3072 is rich but expensive to store at scale.
+
+**MTEB Retrieval** — A score from the retrieval subset of the MTEB benchmark. Higher is better. This measures how well the model ranks relevant documents above irrelevant ones. Scores above 50 are strong. Above 54 is excellent.
+
+**Speed** — How fast the model converts text to vectors. API-based models are fast because they run on powerful servers. Local models depend on your hardware. "Very fast" means even a laptop CPU handles it well.
+
+**Cost** — API models charge per token. Open-source models are free to run but use your own compute. "Free" means the model weights are open and you can run them anywhere.
+
+---
+
+## Recommendations by Use Case
+
+### For Learning and Prototyping
+
+**Use `all-MiniLM-L6-v2`.**
+
+It is small (90MB), fast on CPU, free, and produces 384-dimensional vectors. The quality is lower than the big models, but it is more than enough to learn the concepts and build working demos. This is the model we use in Lab 1 and the Playground.
+
+```python
+from sentence_transformers import SentenceTransformer
+model = SentenceTransformer("all-MiniLM-L6-v2")
+```
+
+### For Production on a Budget
+
+**Use `text-embedding-3-small` from OpenAI.**
+
+At $0.02 per million tokens, it is extremely cheap. The quality is solid. For most business use cases — internal knowledge bases, customer support bots, document search — this is the sweet spot.
+
+```python
+from openai import OpenAI
+client = OpenAI()
+response = client.embeddings.create(
+    model="text-embedding-3-small",
+    input="Your text here"
+)
+```
+
+### For Best Quality (Cloud)
+
+**Use `text-embedding-3-large` from OpenAI or `voyage-large-2` from Voyage AI.**
+
+These models score highest on retrieval benchmarks. Use them when retrieval quality directly impacts your product (legal search, medical Q&A, compliance systems). The cost difference between `small` and `large` is meaningful at scale, so only upgrade when you have measured that it actually improves your results.
+
+### For Self-Hosted / No API Keys
+
+**Use `bge-large-en-v1.5` or `nomic-embed-text-v1.5`.**
+
+Both are open-source, free to run, and competitive with commercial APIs. `bge-large-en-v1.5` has excellent benchmark scores. `nomic-embed-text-v1.5` supports up to 8192 tokens per input, which is useful for long documents where you want larger chunks.
+
+```python
+from sentence_transformers import SentenceTransformer
+model = SentenceTransformer("BAAI/bge-large-en-v1.5")
+```
+
+You will need a machine with at least 4GB of RAM. A GPU helps but is not required.
+
+### For Multilingual Documents
+
+**Use `Cohere embed-v3`.**
+
+Cohere's model supports 100+ languages and performs well across all of them. If your documents are in multiple languages, or if users query in one language and documents are in another, this is the best choice. Cohere also offers a generous free tier.
+
+---
+
+## The Dimensions Tradeoff
+
+More dimensions means more information per vector, but also:
+
+- **More storage.** A million vectors at 384 dimensions takes ~1.5GB. At 3072 dimensions, that is ~12GB.
+- **Slower search.** Comparing longer vectors takes more computation. The difference is small for thousands of vectors, noticeable for millions.
+- **Marginal returns.** Going from 384 to 1024 dimensions is a big quality jump. Going from 1024 to 3072 is a smaller one.
+
+For most projects under 100,000 documents, dimensions do not matter much for performance. Choose based on quality and cost, not dimensions.
+
+---
+
+## How to Benchmark for Your Specific Data
+
+The MTEB leaderboard tells you how models perform on standardised benchmarks. Your data is not standardised. The model that scores highest on MTEB might not be the best for your specific documents and queries.
+
+Here is how to test:
+
+1. **Create 20 test queries** with known correct answers from your documents.
+2. **Run each query** through your pipeline with Model A. Record which chunks are retrieved.
+3. **Swap to Model B.** Run the same queries. Record results.
+4. **Compare.** For each query, did the model retrieve the chunks that contain the correct answer? Count how many queries each model gets right.
+
+```python
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+def test_model(model_name, chunks, queries, expected_chunk_indices):
+    """Simple benchmark: how often does the model retrieve the right chunk?"""
+    model = SentenceTransformer(model_name)
+
+    chunk_embeddings = model.encode([c for c in chunks])
+
+    correct = 0
+    for query, expected_idx in zip(queries, expected_chunk_indices):
+        query_embedding = model.encode(query)
+        similarities = np.dot(chunk_embeddings, query_embedding)
+        top_3 = np.argsort(similarities)[-3:][::-1]
+
+        if expected_idx in top_3:
+            correct += 1
+
+    accuracy = correct / len(queries)
+    print(f"{model_name}: {accuracy:.0%} ({correct}/{len(queries)} queries correct)")
+    return accuracy
+
+# Example usage:
+# test_model("all-MiniLM-L6-v2", my_chunks, my_queries, my_expected_indices)
+# test_model("BAAI/bge-large-en-v1.5", my_chunks, my_queries, my_expected_indices)
+```
+
+This takes 30 minutes to set up and gives you a definitive answer for your data. It is always better than trusting leaderboard scores alone.
+
+---
+
+## A Note on Recency
+
+The embedding model landscape changes fast. New models appear on the MTEB leaderboard regularly. The models listed here were strong choices as of early 2026, but check the [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) before committing to a model for a production system.
+
+The evaluation process described above does not change, regardless of which models are available. Pick 2-3 candidates from the leaderboard, test them on your data, and go with the winner.
+
+---
+
+## Source
+
+All benchmark data referenced on this page is sourced from the [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) on Hugging Face. Individual model documentation is linked from each provider's official site.

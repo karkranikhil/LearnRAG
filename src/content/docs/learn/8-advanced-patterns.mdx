@@ -1,0 +1,326 @@
+---
+title: "Advanced RAG Patterns"
+description: "Learn HyDE, Query Decomposition, Self-RAG, Corrective RAG, and more — with a decision tool to find the right pattern for your problem."
+---
+
+import ChapterProgress from '../../../components/react/ChapterProgress';
+import PatternSelector from '../../../components/react/PatternSelector';
+import MermaidDiagram from '../../../components/react/MermaidDiagram';
+import GlossaryTooltip from '../../../components/react/GlossaryTooltip';
+import QuickCheck from '../../../components/react/QuickCheck';
+import Callout from '../../../components/react/Callout';
+import FeedbackWidget from '../../../components/react/FeedbackWidget';
+
+<ChapterProgress client:load chapterNumber={8} badge="architect" readTime={25} />
+
+# Advanced RAG Patterns
+
+### Standard RAG is a knife. These patterns are the rest of the kitchen. You don't always need them — but when you do, you'll know.
+
+---
+
+**After this chapter, you will be able to:** identify which advanced RAG pattern solves a specific problem, explain how each one works, and make an honest decision about whether you actually need one.
+
+---
+
+## When Standard RAG Falls Short
+
+The pipeline you have built — chunk, embed, retrieve, generate — works remarkably well for straightforward questions over clean documents. But the real world is not straightforward. Users ask vague questions. They ask complex multi-part questions. Sometimes your retrieval just misses.
+
+These advanced patterns exist to handle those edge cases. But here is the honest truth up front: **most RAG use cases need zero of these patterns.** Some need one. Rarely two. If your standard pipeline scores well on evaluation (Chapter 7), do not add complexity for the sake of it. Every pattern adds latency, cost, and debugging surface area.
+
+With that caveat, here are the six patterns worth knowing.
+
+<Callout type="warning">Do not add advanced patterns just because they sound impressive. Every pattern adds latency, cost, and debugging surface. Only add one when your evaluation scores (Chapter 7) point to a specific, measurable problem.</Callout>
+
+---
+
+## Pattern 1 — HyDE (Hypothetical Document Embeddings)
+
+**The problem it solves:** the user's query is vague or phrased very differently from how the answer appears in your documents.
+
+Think about this: a user asks "Why is my app slow?" Your knowledge base contains a chunk that says "Database connection pooling reduces latency by reusing existing connections." These two sentences mean related things, but their surface-level similarity is low. The query is a question in casual language. The answer is a technical statement. Standard semantic search might miss it.
+
+<GlossaryTooltip client:load term="HyDE" definition="Hypothetical Document Embeddings — a technique where the LLM first generates a hypothetical answer to the query, then that hypothetical answer is embedded and used for retrieval instead of the original query. This bridges the gap between question-style queries and document-style content.">HyDE</GlossaryTooltip> fixes this with a clever trick: instead of embedding the user's question and searching for similar chunks, you first ask the LLM to **generate a hypothetical answer** to the question. That hypothetical answer will be phrased like a document — because that is what LLMs produce. Then you embed that hypothetical answer and search for chunks similar to it. [src: gao2022hyde]
+
+The hypothetical answer does not need to be correct. It just needs to be phrased like the kind of document that would contain the real answer. This bridges the vocabulary gap between how people ask questions and how documents are written.
+
+```
+User query:  "Why is my app slow?"
+HyDE step:   LLM generates → "Application slowness is commonly caused
+              by unoptimised database queries, insufficient connection
+              pooling, and memory leaks in long-running processes."
+Search with:  Embed the hypothetical answer, not the original query
+```
+
+**Use HyDE when:**
+
+- ✅ Queries are vague or conversational
+- ✅ Documents are formal and technical
+- ✅ You see vocabulary mismatch between user language and document language
+
+**Skip HyDE when:**
+
+- ⚠️ Queries are already specific and precise
+- ⚠️ Your current retrieval quality is strong
+- ⚠️ Added latency and cost are not justified
+
+---
+
+## Pattern 2 — Query Decomposition
+
+**The problem it solves:** the user asks a complex question that requires information from multiple different parts of your knowledge base.
+
+Consider the question: "Compare Apple's and Google's revenue in 2023 and explain which company grew faster." A single retrieval pass will struggle here. It needs chunks about Apple's revenue, chunks about Google's revenue, and possibly chunks about growth rates. A single query embedding cannot capture all three needs simultaneously.
+
+<GlossaryTooltip client:load term="Query Decomposition" definition="A technique where a complex question is broken into simpler sub-questions, each answered independently through its own retrieval pass, then the results are combined into a final answer.">Query Decomposition</GlossaryTooltip> breaks the complex question into sub-questions:
+
+1. "What was Apple's revenue in 2023?"
+2. "What was Google's revenue in 2023?"
+3. "What were the year-over-year growth rates for each?"
+
+Each sub-question gets its own retrieval pass. The results are combined and the LLM synthesises a final comparative answer from all the retrieved chunks.
+
+**Use Query Decomposition when:**
+
+- ✅ Questions are multi-part or comparative
+- ✅ One query needs evidence from multiple document areas
+
+**Skip Query Decomposition when:**
+
+- ⚠️ Questions are short and single-topic
+- ⚠️ Additional retrieval passes would add unnecessary latency
+
+---
+
+## Pattern 3 — Self-RAG
+
+**The problem it solves:** standard RAG always retrieves, even when it does not need to, and never checks whether its own answer is actually grounded.
+
+<GlossaryTooltip client:load term="Self-RAG" definition="A pattern where the model itself decides whether retrieval is necessary, and after generating an answer, evaluates whether its response is grounded in the retrieved context. It can decide to retrieve again or refuse to answer if confidence is low.">Self-RAG</GlossaryTooltip> makes the model smarter about the retrieval process itself. Instead of always retrieving, the model first decides: "Do I need to look something up to answer this, or do I already know?" If it decides to retrieve, it does. After generating an answer, it evaluates itself: "Is my answer actually supported by the chunks I retrieved?" [src: asai2023selfrag]
+
+Think of it like a student taking an open-book exam who is also honest about their own confidence. They check their notes when they need to, skip the notes when they are sure, and re-check when their answer feels shaky.
+
+The self-evaluation step is the key innovation. In standard RAG, the model never questions its own output. In Self-RAG, the model generates special "reflection tokens" that indicate whether it thinks retrieval was helpful and whether the answer is grounded. If the self-check fails, it can retrieve again with a refined query.
+
+**Use Self-RAG when:**
+
+- ✅ Reliability requirements are strict
+- ✅ You want retrieval decisions and self-checking behavior
+- ✅ Hallucination control needs to improve beyond prompt-only guardrails
+
+**Skip Self-RAG when:**
+
+- ⚠️ Use case is straightforward document Q&A
+- ⚠️ Retrieval is always required anyway
+- ⚠️ You want to minimize system complexity
+
+---
+
+## Pattern 4 — Corrective RAG (CRAG)
+
+**The problem it solves:** sometimes retrieval fails completely. The chunks you get back are not relevant to the question at all, but the model tries to answer from them anyway — producing a confidently wrong response.
+
+<GlossaryTooltip client:load term="Corrective RAG" definition="A pattern that evaluates the quality of retrieved documents before using them. If retrieved chunks score below a relevance threshold, the system discards them and falls back to an alternative source like web search.">Corrective RAG</GlossaryTooltip> adds a quality gate after retrieval. Before sending chunks to the LLM, a lightweight evaluator scores each chunk's relevance to the query. If the scores are too low — meaning retrieval failed to find anything useful — the system takes a corrective action instead of proceeding with bad context. [src: yan2024crag]
+
+That corrective action is typically a fallback to web search. If your internal documents do not have the answer, search the web instead. The system can also partially correct: keep the one good chunk, discard the three bad ones, and supplement with web results.
+
+```
+Query → Retrieve chunks → Score relevance
+  ├── Scores HIGH → Proceed normally with retrieved chunks
+  ├── Scores MEDIUM → Keep best chunks + supplement with web search
+  └── Scores LOW → Discard all chunks → Fall back to web search
+```
+
+**Use CRAG when:**
+
+- ✅ Internal retrieval sometimes fails completely
+- ✅ Fallback-to-web is acceptable for your product
+- ✅ You need a quality gate before generation
+
+**Skip CRAG when:**
+
+- ⚠️ Internal corpus already covers the full query space
+- ⚠️ Security/compliance blocks external web access
+
+---
+
+## Pattern 5 — Multi-Vector Retrieval
+
+**The problem it solves:** a single embedding per chunk captures only one view of what that chunk is about. Some queries match the chunk's summary better than its full text. Some match the hypothetical questions the chunk could answer.
+
+<GlossaryTooltip client:load term="Multi-Vector Retrieval" definition="A technique where each document chunk is stored with multiple vector representations — such as the full text embedding, a summary embedding, and embeddings of hypothetical questions the chunk answers. Retrieval searches across all representations.">Multi-Vector Retrieval</GlossaryTooltip> stores multiple representations of the same chunk:
+
+- The **full text** embedding (what you already have)
+- A **summary** embedding (a one-sentence summary of the chunk, embedded separately)
+- **Hypothetical question** embeddings (questions that this chunk would answer, generated by an LLM and embedded)
+
+When a query comes in, retrieval searches across all representations. A query phrased as a question might match the hypothetical question embedding better than the full text embedding. A broad query might match the summary embedding best.
+
+**Use Multi-Vector Retrieval when:**
+
+- ✅ Documents are long or semantically dense
+- ✅ Users query in many different styles
+- ✅ Single-vector retrieval misses relevant content
+
+**Skip Multi-Vector Retrieval when:**
+
+- ⚠️ Chunks are short and well-scoped
+- ⚠️ Single-vector retrieval already scores well
+- ⚠️ Storage/indexing cost needs to stay lean
+
+---
+
+## Pattern 6 — Agentic RAG
+
+**The problem it solves:** the user's question requires multiple steps, and the system needs to decide dynamically what to do next based on intermediate results.
+
+<GlossaryTooltip client:load term="Agentic RAG" definition="A pattern where RAG is embedded within an AI agent loop. The agent can decide to retrieve, search again with a different query, use a different tool, or combine multiple retrieval results — all dynamically based on intermediate results.">Agentic RAG</GlossaryTooltip> treats retrieval as one tool in an agent's toolbox. Instead of a fixed pipeline (retrieve then generate), an AI agent decides at each step what to do: retrieve from the knowledge base, search the web, run a calculation, retrieve again with a different query, or combine results from multiple searches.
+
+Think of it as the difference between a vending machine and a chef. Standard RAG is a vending machine — put in a query, get an answer, done. Agentic RAG is a chef who checks the pantry, decides what is missing, sends someone to the store, adjusts the recipe based on what is available, and tastes as they go.
+
+**Example flow:**
+
+1. User asks: "How does our vacation policy compare to industry standard?"
+2. Agent retrieves from internal knowledge base → finds the company vacation policy
+3. Agent decides it needs external data → searches the web for industry benchmarks
+4. Agent combines both sources → generates a comparative answer with citations
+
+**Use Agentic RAG when:**
+
+- ✅ Multi-step reasoning and tool orchestration are truly required
+- ✅ Workflow depends on dynamic decisions across steps
+
+**Skip Agentic RAG when:**
+
+- ⚠️ Standard RAG or one focused pattern solves the problem
+- ⚠️ Latency and operational complexity are key constraints
+- ⚠️ You do not need autonomous tool routing
+
+---
+
+## When to Use Each Pattern — The Honest Framework
+
+Most people reading about advanced patterns want to use all of them. Resist that urge. Here is the decision framework:
+
+| Your Problem | Pattern to Consider | Complexity Added |
+|---|---|---|
+| Vague, conversational queries | HyDE | Low — one extra LLM call |
+| Complex multi-part questions | Query Decomposition | Medium — multiple retrieval passes |
+| Need high reliability, reduce hallucination | Self-RAG | High — requires model fine-tuning or careful prompting |
+| Retrieval sometimes fails completely | CRAG | Medium — needs relevance scoring + fallback |
+| Documents are long, queries vary widely | Multi-Vector Retrieval | Medium — multiplied storage and indexing |
+| Multi-step reasoning required | Agentic RAG | Very High — full agent architecture |
+
+**The rule of thumb:** start with standard RAG. Evaluate it (Chapter 7). If evaluation reveals a specific, measurable problem — low recall on vague queries, poor precision on complex questions — then pick the one pattern that targets that problem. Do not stack patterns until you have evidence that one is not enough.
+
+<Callout type="plain-english">Standard RAG handles most use cases. Advanced patterns are fixes for specific, measured problems — not upgrades you install by default.</Callout>
+
+---
+
+## Try It Yourself — Which Pattern Do I Need?
+
+Answer a few questions about your specific situation and get a recommendation for which pattern (if any) would help.
+
+<PatternSelector client:visible />
+
+---
+
+## The Full Advanced Architecture
+
+Here is where each pattern plugs into the standard RAG pipeline. Not every system uses all of these — most use zero or one.
+
+<MermaidDiagram client:load chart={`
+graph TD
+    Q["User Query"] --> QD["Query Decomposition<br/><i>Split complex queries</i>"]
+    Q --> HY["HyDE<br/><i>Generate hypothetical answer</i>"]
+    Q --> STD["Standard Query<br/><i>Embed directly</i>"]
+
+    QD --> RET["Retrieval"]
+    HY --> RET
+    STD --> RET
+
+    RET --> MV["Multi-Vector Search<br/><i>Full text + summary +<br/>hypothetical questions</i>"]
+    MV --> CRAG["CRAG Quality Gate<br/><i>Score relevance, fallback<br/>to web if needed</i>"]
+
+    CRAG --> GEN["Generation"]
+    GEN --> SELF["Self-RAG Check<br/><i>Is the answer grounded?</i>"]
+    SELF -->|"Yes"| ANS["Final Answer"]
+    SELF -->|"No"| RET
+
+    AGENT["Agentic Loop<br/><i>Orchestrates all steps<br/>dynamically</i>"] -.-> Q
+    AGENT -.-> RET
+    AGENT -.-> GEN
+
+    style Q fill:#F59E0B,stroke:#2D3148,color:#000
+    style QD fill:#3B82F6,stroke:#2D3148,color:#fff
+    style HY fill:#3B82F6,stroke:#2D3148,color:#fff
+    style STD fill:#1A1D27,stroke:#2D3148,color:#fff
+    style RET fill:#1A1D27,stroke:#2D3148,color:#fff
+    style MV fill:#3B82F6,stroke:#2D3148,color:#fff
+    style CRAG fill:#3B82F6,stroke:#2D3148,color:#fff
+    style GEN fill:#1A1D27,stroke:#2D3148,color:#fff
+    style SELF fill:#3B82F6,stroke:#2D3148,color:#fff
+    style ANS fill:#22C55E,stroke:#2D3148,color:#fff
+    style AGENT fill:#EF4444,stroke:#2D3148,color:#fff
+`} />
+
+---
+
+## Your Project Step
+
+Look at your chatbot's RAGAS scores from Chapter 7. If all metrics are above 0.8, congratulations — you probably do not need any advanced patterns. If context recall is low on certain types of queries, try HyDE. If precision drops on complex questions, try query decomposition. The key discipline: **identify the problem with data first, then pick the pattern that fixes it.**
+
+---
+
+<QuickCheck client:load chapterId="8-advanced-patterns" questions={[
+  {
+    question: "HyDE generates a hypothetical answer before retrieval. Why does this help?",
+    options: [
+      "The hypothetical answer is always correct, so it replaces the need for retrieval",
+      "It bridges the vocabulary gap between how users ask questions and how documents are written",
+      "It reduces the number of chunks that need to be stored in the vector database",
+      "It allows the system to skip the embedding step entirely"
+    ],
+    correct: 1,
+    explanation: "HyDE works because the hypothetical answer is phrased like a document — matching the style and vocabulary of your knowledge base — even if it is not factually correct. Embedding this document-style text produces a vector that is closer to the relevant chunks than the original question-style query would be."
+  },
+  {
+    question: "According to the 'honest framework' in this chapter, when should you add an advanced RAG pattern?",
+    options: [
+      "Always — advanced patterns are strictly better than standard RAG",
+      "When evaluation reveals a specific, measurable problem that a pattern directly addresses",
+      "When you have more than 1,000 documents in your knowledge base",
+      "When users request it — always give users the most advanced option available"
+    ],
+    correct: 1,
+    explanation: "The chapter emphasises that most use cases need zero advanced patterns. You should only add one when evaluation data shows a specific problem — like low recall on vague queries (suggesting HyDE) or poor precision on complex questions (suggesting query decomposition). Adding complexity without evidence wastes time and adds debugging surface area."
+  }
+]} />
+
+---
+
+## What You Just Built
+
+You have completed the full LearnRAG curriculum. You understand the six advanced patterns that extend standard RAG, you know when each one is and is not appropriate, and — most importantly — you have the discipline to only use them when evaluation data justifies the complexity.
+
+Let us recap the entire journey. You started by understanding why RAG exists (Chapter 1). You learned to ingest and chunk documents (Chapter 2), embed them into vectors (Chapter 3), and store those vectors in a database (Chapter 4). You built smart retrieval (Chapter 5), crafted prompts that turn retrieved chunks into grounded answers (Chapter 6), and measured whether your pipeline actually works (Chapter 7). Now you have the advanced toolkit for when standard RAG is not enough.
+
+You have a working chatbot over your own notes. You have a measured, evaluated pipeline. And you know exactly where to go next when you encounter a problem your current setup cannot handle.
+
+---
+
+<FeedbackWidget client:visible chapterId="8-advanced-patterns" />
+
+---
+
+## Sources
+
+- Gao, L., Ma, X., Lin, J., & Callan, J. (2022). [*Precise Zero-Shot Dense Retrieval without Relevance Labels.*](https://arxiv.org/abs/2212.10496) [src: gao2022hyde]
+- Asai, A., Wu, Z., Wang, Y., Sil, A., & Hajishirzi, H. (2023). [*Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection.*](https://arxiv.org/abs/2310.11511) [src: asai2023selfrag]
+- Yan, S., Gu, J., Zhu, Y., & Ling, Z. (2024). [*Corrective Retrieval Augmented Generation.*](https://arxiv.org/abs/2401.15884) [src: yan2024crag]
+- Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., ... & Kiela, D. (2020). [*Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.*](https://arxiv.org/abs/2005.11401) [src: lewis2020]
+
+---
+
+[← Chapter 7: Evaluation](/learn/7-evaluation/) | [Explore the Labs →](/labs/1-langchain-chromadb/)

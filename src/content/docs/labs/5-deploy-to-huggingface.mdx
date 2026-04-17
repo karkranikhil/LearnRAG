@@ -1,0 +1,353 @@
+---
+title: "Lab 5: Deploy to Hugging Face Spaces"
+description: "Ship your RAG pipeline as a live web app on Hugging Face Spaces using Gradio. Upload a document, ask questions, get answers — shareable with anyone."
+---
+
+<div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; background: rgba(74,222,128,0.05); border: 1px solid rgba(74,222,128,0.15); border-radius: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4ade80; background: rgba(74,222,128,0.1); padding: 0.125rem 0.5rem; border-radius: 9999px;">HANDS-ON LAB</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">~30 minutes</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">Intermediate</span>
+  <span style="font-size: 0.8125rem; color: #F59E0B;">Architect badge</span>
+</div>
+
+You have built a RAG pipeline. You have evaluated it. Now it is time to ship it.
+
+In this lab, you will deploy your RAG pipeline as a live web application on Hugging Face Spaces. Anyone with a link can upload a document, ask questions, and get answers — no setup required on their end. This is how you go from "it works on my laptop" to "here is the link."
+
+Hugging Face Spaces is free for CPU-based apps. Gradio gives you a web interface with about 50 lines of Python. Together, they are the fastest path from working code to a shareable demo.
+
+---
+
+## Prerequisites
+
+Before starting this lab, you need:
+
+- **Python 3.9+** installed
+- **A Hugging Face account** (free — [sign up here](https://huggingface.co/join))
+- **An OpenAI API key** (or any LLM API key for the generation step)
+- **Git** installed
+- Familiarity with the RAG pipeline from Labs 1 through 3
+
+---
+
+## Step 1: Structure Your App
+
+Your deployed app needs to do four things in a single script:
+
+1. **Accept a document** (file upload)
+2. **Chunk and embed** the document
+3. **Search** for relevant chunks when the user asks a question
+4. **Generate an answer** using an LLM with the retrieved chunks as context
+
+All of this goes into one file: `app.py`. Hugging Face Spaces runs this file automatically.
+
+Here is the project structure:
+
+```
+my-rag-app/
+├── app.py              # The entire application
+├── requirements.txt    # Dependencies
+└── README.md           # Hugging Face Space metadata (auto-generated)
+```
+
+---
+
+## Step 2: Create requirements.txt
+
+Create a `requirements.txt` file with the dependencies your app needs:
+
+```txt
+gradio>=4.0.0
+langchain>=0.1.0
+langchain-community>=0.0.10
+langchain-openai>=0.0.5
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+```
+
+:::tip
+Pin your major versions. Hugging Face Spaces installs from `requirements.txt` on every rebuild. Unpinned dependencies can break your app when a library ships a breaking change.
+:::
+
+---
+
+## Step 3: Build the Gradio App
+
+This is the complete `app.py`. Read through it — every section maps to a step in the RAG pipeline you already know:
+
+```python
+import os
+import gradio as gr
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain.chains import RetrievalQA
+
+# --- Configuration ---
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 50
+EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+TOP_K = 3
+
+# --- Global state ---
+vector_store = None
+qa_chain = None
+
+
+def process_document(file, openai_key):
+    """Ingest a document: chunk it, embed it, store it."""
+    global vector_store, qa_chain
+
+    if not openai_key or not openai_key.strip():
+        return "Please enter your OpenAI API key."
+
+    if file is None:
+        return "Please upload a file."
+
+    # Read the uploaded file
+    with open(file.name, "r", encoding="utf-8", errors="ignore") as f:
+        text = f.read()
+
+    if not text.strip():
+        return "The uploaded file is empty."
+
+    # Step 1: Chunk the text
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
+    )
+    chunks = splitter.split_text(text)
+
+    # Step 2: Embed and store in ChromaDB
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+    vector_store = Chroma.from_texts(
+        texts=chunks,
+        embedding=embeddings,
+    )
+
+    # Step 3: Create the QA chain
+    llm = ChatOpenAI(
+        model_name="gpt-3.5-turbo",
+        temperature=0.1,
+        openai_api_key=openai_key,
+    )
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        chain_type="stuff",
+        retriever=vector_store.as_retriever(search_kwargs={"k": TOP_K}),
+        return_source_documents=True,
+    )
+
+    return f"Document processed: {len(chunks)} chunks created and embedded."
+
+
+def ask_question(question):
+    """Retrieve relevant chunks and generate an answer."""
+    if qa_chain is None:
+        return "Please upload a document first.", ""
+
+    if not question.strip():
+        return "Please enter a question.", ""
+
+    result = qa_chain.invoke({"query": question})
+    answer = result["result"]
+
+    # Format source chunks for display
+    sources = []
+    for i, doc in enumerate(result["source_documents"]):
+        preview = doc.page_content[:200]
+        sources.append(f"**Chunk {i + 1}:**\n{preview}...")
+
+    sources_text = "\n\n---\n\n".join(sources)
+    return answer, sources_text
+
+
+# --- Gradio Interface ---
+with gr.Blocks(
+    title="RAG Chatbot",
+    theme=gr.themes.Soft(primary_hue="blue"),
+) as app:
+    gr.Markdown("# RAG Chatbot")
+    gr.Markdown(
+        "Upload a `.txt` or `.md` file, then ask questions about it. "
+        "Your document is chunked, embedded, and searched in real time."
+    )
+
+    with gr.Row():
+        with gr.Column(scale=1):
+            gr.Markdown("### 1. Setup")
+            api_key_input = gr.Textbox(
+                label="OpenAI API Key",
+                type="password",
+                placeholder="sk-...",
+            )
+            file_input = gr.File(
+                label="Upload Document (.txt or .md)",
+                file_types=[".txt", ".md"],
+            )
+            process_btn = gr.Button("Process Document", variant="primary")
+            status_output = gr.Textbox(label="Status", interactive=False)
+
+        with gr.Column(scale=2):
+            gr.Markdown("### 2. Ask Questions")
+            question_input = gr.Textbox(
+                label="Your Question",
+                placeholder="What is this document about?",
+                lines=2,
+            )
+            ask_btn = gr.Button("Ask", variant="primary")
+            answer_output = gr.Markdown(label="Answer")
+            gr.Markdown("**Retrieved Chunks:**")
+            sources_output = gr.Markdown()
+
+    # Wire up the buttons
+    process_btn.click(
+        fn=process_document,
+        inputs=[file_input, api_key_input],
+        outputs=[status_output],
+    )
+    ask_btn.click(
+        fn=ask_question,
+        inputs=[question_input],
+        outputs=[answer_output, sources_output],
+    )
+    question_input.submit(
+        fn=ask_question,
+        inputs=[question_input],
+        outputs=[answer_output, sources_output],
+    )
+
+# Launch the app
+app.launch()
+```
+
+Test it locally first:
+
+```bash
+python app.py
+```
+
+This opens a Gradio interface in your browser at `http://localhost:7860`. Upload a text file, enter your API key, process the document, and ask a question. Make sure it works before deploying.
+
+---
+
+## Step 4: Create a Hugging Face Space
+
+Go to [huggingface.co/new-space](https://huggingface.co/new-space) and fill in:
+
+| Field | Value |
+|---|---|
+| Space name | `my-rag-chatbot` (or whatever you like) |
+| License | MIT |
+| SDK | **Gradio** |
+| Visibility | Public (so you can share the link) |
+
+Click **Create Space**. Hugging Face gives you a Git repository URL.
+
+### Add your API key as a Secret
+
+Do not hardcode your API key in the code. Instead:
+
+1. Go to your Space's **Settings** tab
+2. Scroll to **Repository secrets**
+3. Add a secret: Name = `OPENAI_API_KEY`, Value = your key
+
+Then update the `process_document` function to read from the environment as a fallback:
+
+```python
+def process_document(file, openai_key):
+    # Use the provided key, or fall back to the Space secret
+    key = openai_key.strip() if openai_key else os.environ.get("OPENAI_API_KEY", "")
+    if not key:
+        return "Please enter your OpenAI API key."
+    # ... rest of the function uses 'key' instead of 'openai_key'
+```
+
+---
+
+## Step 5: Push and Deploy
+
+Clone your new Space, copy your files in, and push:
+
+```bash
+# Clone the Space repository
+git clone https://huggingface.co/spaces/YOUR_USERNAME/my-rag-chatbot
+cd my-rag-chatbot
+
+# Copy your app files
+cp /path/to/your/app.py .
+cp /path/to/your/requirements.txt .
+
+# Commit and push
+git add app.py requirements.txt
+git commit -m "Initial RAG chatbot deployment"
+git push
+```
+
+Hugging Face automatically detects the push, installs dependencies from `requirements.txt`, and starts your app. The build takes 2 to 5 minutes.
+
+Watch the build logs in the **Logs** tab of your Space. Common issues:
+
+| Error | Fix |
+|---|---|
+| `ModuleNotFoundError` | Add the missing package to `requirements.txt` |
+| Build timeout | Reduce dependencies or use lighter models |
+| Out of memory | The free CPU tier has 16GB RAM — `all-MiniLM-L6-v2` fits easily, larger models may not |
+
+Once the build completes, your app is live at:
+
+```
+https://huggingface.co/spaces/YOUR_USERNAME/my-rag-chatbot
+```
+
+---
+
+## Step 6: Share Your App
+
+Your app is now a public URL. Anyone can use it.
+
+Here is what to do with it:
+
+**Share the link directly.** Send it to friends, colleagues, or post it in the LearnRAG Discord `#show-your-project` channel.
+
+**Embed it in a portfolio.** Hugging Face Spaces can be embedded as iframes:
+
+```html
+<iframe
+  src="https://YOUR_USERNAME-my-rag-chatbot.hf.space"
+  width="100%"
+  height="600"
+  frameborder="0"
+></iframe>
+```
+
+**Add it to your GitHub README.** Link to the live demo alongside your source code. Recruiters and hiring managers click live demos far more often than they clone repositories.
+
+**Iterate in public.** Every `git push` triggers a rebuild. Add features, improve your chunking strategy, swap in a re-ranker — your live app updates automatically.
+
+:::caution
+The free Hugging Face CPU tier sleeps after 48 hours of inactivity. The first request after sleep takes 30 to 60 seconds while the Space boots up. This is normal for free tier. Upgraded Spaces (paid) stay awake.
+:::
+
+---
+
+## What You Built
+
+In this lab you:
+
+1. **Structured a complete RAG app** as a single Python file ready for deployment
+2. **Built a Gradio interface** with file upload, document processing, and question answering
+3. **Deployed to Hugging Face Spaces** with zero infrastructure management
+4. **Configured secrets** so your API key is not exposed in code
+5. **Shipped a shareable link** that anyone can use
+
+This is the full loop: learn, build, evaluate, deploy. You now have a live RAG application on the internet that you built from scratch.
+
+---
+
+**Sources:**
+
+- [Gradio Documentation](https://www.gradio.app/docs/)
+- [Hugging Face Spaces Documentation](https://huggingface.co/docs/hub/spaces)
+- [LangChain RetrievalQA Documentation](https://python.langchain.com/docs/use_cases/question_answering/)

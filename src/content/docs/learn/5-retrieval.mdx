@@ -1,0 +1,209 @@
+---
+title: "Hybrid Search vs Semantic Search: RAG Retrieval Strategies"
+description: "Master semantic search, hybrid search, MMR, and re-ranking — with a side-by-side comparator to see why strategy matters."
+---
+
+import ChapterProgress from '../../../components/react/ChapterProgress';
+import RetrievalComparator from '../../../components/react/RetrievalComparator';
+import MermaidDiagram from '../../../components/react/MermaidDiagram';
+import GlossaryTooltip from '../../../components/react/GlossaryTooltip';
+import QuickCheck from '../../../components/react/QuickCheck';
+import Callout from '../../../components/react/Callout';
+import FeedbackWidget from '../../../components/react/FeedbackWidget';
+
+<ChapterProgress client:load chapterNumber={5} badge="builder" readTime={16} />
+
+## Smart search is what separates demos from products
+
+> *"Searching by meaning is just the beginning. The difference between a toy demo and a real product is how smart your search is."*
+
+In the last chapter, you stored your vectors in a database. You can now ask "what's most similar to my query?" and get results in milliseconds. That's great — but it's also the most basic retrieval strategy there is. In this chapter, you'll learn the techniques that make retrieval actually *good*.
+
+Think of it this way: basic <GlossaryTooltip client:load term="semantic search">semantic search</GlossaryTooltip> is like searching Google by meaning instead of keywords. That's already powerful. But Google doesn't just find similar pages — it ranks them, filters them, removes duplicates, and picks the best handful to show you. That's what this chapter is about.
+
+---
+
+## Naive similarity search and the top-K problem
+
+The simplest retrieval strategy is: embed the user's query, calculate <GlossaryTooltip client:load term="cosine similarity">cosine similarity</GlossaryTooltip> against every stored chunk, and return the <GlossaryTooltip client:load term="top-K">top-K</GlossaryTooltip> results — the K chunks with the highest similarity scores.
+
+This works. For simple questions over small document sets, it works surprisingly well. But it has two blind spots.
+
+**Blind spot 1: choosing K.** If K is too small (say, 1), you might miss relevant context that was split across multiple chunks. If K is too large (say, 20), you flood the LLM with noise — chunks that are vaguely related but don't actually help answer the question. And since LLMs have limited context windows, every irrelevant chunk pushes out space for a relevant one.
+
+**Blind spot 2: semantic-only misses.** Imagine searching for "GPT-4 pricing" in a document about AI models. The chunk that contains the actual pricing table might use the exact phrase "GPT-4" but talk about it in a very different semantic context than your query. Pure semantic search might rank a chunk *about* pricing concepts higher than the chunk that contains the actual price. Keywords matter too. [src: pinecone_hybrid_search]
+
+---
+
+## Hybrid search: the best of both worlds
+
+<GlossaryTooltip client:load term="hybrid search">Hybrid search</GlossaryTooltip> combines two types of search and merges their results:
+
+1. **Semantic search** — finds chunks that are *similar in meaning* to your query using vector embeddings. Great for conceptual questions like "how does authentication work in this system?"
+2. **Keyword search (<GlossaryTooltip client:load term="BM25">BM25</GlossaryTooltip>)** — finds chunks that contain the *exact words* in your query. Great for specific lookups like "error code 403" or "GPT-4."
+
+BM25 is the algorithm that traditional search engines have used for decades. It scores documents based on how often your search terms appear, adjusted for document length and term rarity. It's simple, fast, and shockingly effective for exact-match queries.
+
+Hybrid search runs both strategies in parallel, then combines the scores. The typical approach is **Reciprocal Rank Fusion (RRF)**: each result gets a score based on its rank in each list, and the combined scores determine the final ranking. A chunk that ranks highly in *both* semantic and keyword search will float to the top. [src: langchain_retrieval_docs]
+
+**When to use hybrid search:**
+
+- ✅ Works for most production scenarios
+- ✅ Captures both semantic similarity and exact keywords
+- ✅ Usually better than pure semantic search when supported natively
+
+<Callout type="plain-english">Hybrid search combines meaning-based search with keyword-based search so you catch both conceptual matches and exact term matches in a single query.</Callout>
+
+---
+
+## MMR: don't return five chunks that say the same thing
+
+Here's a problem that surprises people: you search for "what is RAG?" and your top 5 results are five chunks that all basically say the same thing in slightly different words. Each one individually is relevant, but together they waste four of your five context slots.
+
+<GlossaryTooltip client:load term="MMR">MMR (Maximum Marginal Relevance)</GlossaryTooltip> solves this. Instead of picking the top 5 most similar chunks, MMR picks results that are both relevant to your query *and* different from each other.
+
+**The analogy:** You're building a playlist for a road trip. You love rock music, so a naive algorithm gives you five rock songs. MMR gives you your favourite rock song, then a great pop song, then a rock song in a different style, then something unexpected. Each song is good on its own *and* adds something the others don't.
+
+Technically, MMR works by selecting results iteratively. It picks the most relevant chunk first. Then for each subsequent pick, it balances two scores: similarity to the query (relevance) and *dissimilarity* to the chunks already selected (diversity). A parameter called lambda controls the trade-off — higher lambda means more relevance, lower lambda means more diversity. [src: langchain_retrieval_docs]
+
+**When to use MMR:**
+
+- ✅ Your corpus has repetitive or near-duplicate chunks
+- ✅ You want broader context diversity in the top-K results
+- ✅ You want to avoid sending five versions of the same idea
+
+---
+
+## Re-ranking: a smarter second opinion
+
+Here's the key insight behind <GlossaryTooltip client:load term="re-ranking">re-ranking</GlossaryTooltip>: the embedding models used for initial retrieval are fast but relatively shallow. They encode your query and each chunk *independently* and compare the resulting vectors. They never look at the query and a chunk *together*.
+
+A re-ranker (also called a cross-encoder) is different. It takes your query and a chunk *as a pair*, processes them together, and outputs a single relevance score. Because it sees both texts side by side, it understands relevance much more deeply — it can catch nuances that independent embeddings miss. [src: pinecone_hybrid_search]
+
+The catch: cross-encoders are slow. You can't run one against a million chunks. So the strategy is a two-stage pipeline:
+
+1. **Stage 1 — Fast retrieval:** Use your vector database to grab the top 20 candidates using semantic or hybrid search. This takes milliseconds.
+2. **Stage 2 — Precise re-ranking:** Feed those 20 candidates through a cross-encoder to score them against the query. Pick the top 3. This takes a few hundred milliseconds.
+
+The result: you get the speed of vector search *and* the precision of a cross-encoder. This is the standard architecture for production RAG systems that need high-quality retrieval. [src: langchain_retrieval_docs]
+
+**When to use re-ranking:**
+
+- ✅ Retrieval quality is user-critical
+- ✅ You can afford extra latency (often a few hundred ms)
+- ✅ You need better precision on ambiguous queries
+
+<Callout type="warning">Never use a re-ranker as your only retrieval step. It is too slow to run against your full collection. Always use it as a second pass on a small candidate set from your vector search.</Callout>
+
+---
+
+## Metadata filtering: search smarter, not harder
+
+Sometimes the best retrieval strategy isn't about algorithms — it's about narrowing the search space before you search.
+
+Metadata filtering lets you attach structured data to each chunk (source document, date, category, author, language) and filter on it at query time. Instead of searching all 50,000 chunks in your database, you say "only search chunks from documents tagged as `finance` uploaded after January 2025."
+
+This is enormously powerful and surprisingly underused. If your user asks about "Q4 revenue," you probably don't need to search your engineering docs. Metadata filtering eliminates irrelevant results before the vector search even begins. [src: qdrant_docs]
+
+**When to use metadata filtering:**
+
+- ✅ Your data spans multiple domains, dates, or sources
+- ✅ You can narrow search scope before retrieval
+- ✅ You need better precision and lower noise in production
+
+---
+
+## Try it: compare strategies side by side
+
+Enter a query and see how different retrieval strategies return different results. Watch how hybrid search catches things pure semantic search misses, and how re-ranking reorders results for better relevance.
+
+<RetrievalComparator client:visible />
+
+---
+
+## The retrieval funnel
+
+Here's how the strategies layer together in a production system. You start with your full collection and progressively narrow down to the best results.
+
+<MermaidDiagram client:visible chart={`graph TB
+    A["🗄️ Full Vector Store<br/>1,000+ chunks"] --> B["Stage 1: Hybrid Search<br/>(Semantic + BM25)"]
+    B --> C["Top 20 Candidates<br/>Fast, approximate"]
+    C --> D["Stage 2: Re-Ranking<br/>(Cross-Encoder)"]
+    D --> E["Top 3–5 Chunks<br/>Precise, diverse"]
+    E --> F["Metadata Filter<br/>(optional pre/post filter)"]
+    F --> G["🎯 Final Context<br/>Sent to LLM"]
+    style A fill:#1A1D27,stroke:#2D3148,color:#fff
+    style B fill:#3B82F6,stroke:#1e40af,color:#fff
+    style C fill:#1A1D27,stroke:#2D3148,color:#fff
+    style D fill:#F59E0B,stroke:#b45309,color:#000
+    style E fill:#1A1D27,stroke:#2D3148,color:#fff
+    style F fill:#3B82F6,stroke:#1e40af,color:#fff
+    style G fill:#22C55E,stroke:#15803d,color:#000
+`} caption="The retrieval funnel: start broad with hybrid search, narrow with a re-ranker, and filter by metadata. Each stage trades a bit of speed for a lot more precision." />
+
+Not every system needs every stage. For a personal notes chatbot, naive similarity search with K=5 is probably fine. For a customer-facing product searching millions of documents, you want the full funnel. Match the complexity to the problem.
+
+---
+
+## Project step: run your first query
+
+Head to the **Playground** and run your first query against the chunks you stored in Chapter 4. Try the strategy toggle to switch between naive semantic search and hybrid search. Notice which results change and which stay the same. That difference is the whole point of this chapter.
+
+---
+
+## Quick check
+
+<QuickCheck client:visible chapterId="5-retrieval" questions={[
+  {
+    question: "Why does hybrid search typically outperform pure semantic search?",
+    options: [
+      "It uses a faster algorithm than cosine similarity",
+      "It combines meaning-based results with exact keyword matches, catching cases each misses alone",
+      "It uses a larger embedding model with more dimensions",
+      "It eliminates the need for a vector database entirely"
+    ],
+    correct: 1,
+    explanation: "Hybrid search combines semantic search (which finds conceptually similar chunks) with keyword search like BM25 (which finds exact term matches). Some queries need exact keywords — like searching for 'GPT-4' — while others need semantic understanding. Hybrid search covers both, which is why it's almost always better than either approach alone."
+  },
+  {
+    question: "What problem does re-ranking with a cross-encoder solve?",
+    options: [
+      "It speeds up the initial vector search by compressing embeddings",
+      "It replaces the vector database with a more efficient data structure",
+      "It scores query-chunk pairs together for deeper relevance understanding than independent embeddings provide",
+      "It automatically generates the correct number of top-K results"
+    ],
+    correct: 2,
+    explanation: "Standard embedding models encode the query and each chunk independently, then compare vectors. A cross-encoder re-ranker takes the query and a chunk as a pair and processes them together, capturing fine-grained relevance signals that independent embeddings miss. It's slower, so it's used on a small candidate set (like 20 chunks) rather than the full collection."
+  }
+]} />
+
+---
+
+## What you just built
+
+You now know five retrieval strategies and when to use each one:
+
+- **Naive similarity search** — simple, works for small collections
+- **Hybrid search** — combines semantic and keyword search, almost always better
+- **MMR** — ensures diverse results when your documents overlap
+- **Re-ranking** — a precise second pass using cross-encoders
+- **Metadata filtering** — narrows the search space before you even begin
+
+Your chatbot project now has embedded chunks stored in a vector database, and you've run your first real query. The retrieval side of RAG is solid.
+
+**Next up: Chapter 6 — The Prompt Layer.** Retrieved chunks are just raw ingredients. The prompt is the recipe that tells the AI what to cook — and getting it wrong can undo all the good retrieval work you just did.
+
+---
+
+<FeedbackWidget client:visible chapterId="5-retrieval" />
+
+---
+
+## Sources
+
+- **LangChain Retrieval Documentation** — [python.langchain.com/docs](https://python.langchain.com/docs/) [src: langchain_retrieval_docs]
+- **Pinecone Learning Center — Hybrid Search** — [pinecone.io/learn/hybrid-search](https://www.pinecone.io/learn/hybrid-search) [src: pinecone_hybrid_search]
+- **Qdrant Documentation — Filtering** — [qdrant.tech/documentation](https://qdrant.tech/documentation/) [src: qdrant_docs]
+
+[← Chapter 4: Vector Databases](/learn/4-vector-databases/) | [Chapter 6: The Prompt Layer →](/learn/6-prompting/)

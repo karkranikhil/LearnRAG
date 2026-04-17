@@ -1,0 +1,224 @@
+---
+title: "What Are Embeddings? A Plain-English Guide for RAG"
+description: "Understand what embeddings are, how they capture meaning as numbers, and use cosine similarity to find related text — with an interactive explorer."
+---
+
+import ChapterProgress from '../../../components/react/ChapterProgress';
+import NearestNeighbourExplorer from '../../../components/react/NearestNeighbourExplorer';
+import MermaidDiagram from '../../../components/react/MermaidDiagram';
+import GlossaryTooltip from '../../../components/react/GlossaryTooltip';
+import QuickCheck from '../../../components/react/QuickCheck';
+import Callout from '../../../components/react/Callout';
+import FeedbackWidget from '../../../components/react/FeedbackWidget';
+
+<ChapterProgress client:load chapterNumber={3} badge="builder" readTime={18} />
+
+> *An embedding is just a list of numbers that captures the meaning of a sentence. Similar sentences have similar numbers.*
+
+**After this chapter, you'll be able to:** Understand what embeddings are, why they work, and use them to find semantically similar text.
+
+---
+
+## The Big Idea
+
+In the last chapter, you split documents into chunks. Now you need a way to search those chunks — not by keywords, but by **meaning**.
+
+If someone asks "How do I get a refund?", your system needs to find the chunk about "return policy and money-back guarantees" even though the words are completely different. Keyword search would fail. You need <GlossaryTooltip client:load term="semantic search">semantic search</GlossaryTooltip>.
+
+To search by meaning, you need a way to represent meaning as something a computer can work with. That's what <GlossaryTooltip client:load term="embedding">embeddings</GlossaryTooltip> do.
+
+---
+
+## What Is an Embedding?
+
+An embedding is a list of numbers — typically 384 to 1,536 decimal numbers — that represents the *meaning* of a piece of text. [src: alammar_word2vec]
+
+```
+"How do I get a refund?" → [0.12, -0.05, 0.89, 0.23, -0.41, ... +379 more]
+```
+
+That's it. A <GlossaryTooltip client:load term="vector">vector</GlossaryTooltip> is just an ordered list of numbers. An embedding is a vector that captures meaning.
+
+### The Map Analogy
+
+Imagine mapping every sentence in English onto a giant map:
+
+- "How do I get a refund?" and "What's your return policy?" are plotted close together — they mean similar things
+- "How do I get a refund?" and "Best pasta recipes" are far apart — unrelated topics
+- "King" and "Queen" are near each other; "King" and "Potato" are far apart
+
+An <GlossaryTooltip client:load term="embedding model">embedding model</GlossaryTooltip> creates this map automatically. It takes any text and assigns it coordinates. Similar meaning = nearby coordinates. Different meaning = far apart.
+
+<Callout type="plain-english">An embedding turns text into a list of numbers that captures its meaning. Similar text gets similar numbers, so a computer can measure how related two pieces of text are.</Callout>
+
+The catch: instead of a 2D map, embeddings work in 384 or 768 dimensions. You can't visualise 768 dimensions (nobody can), but the math works exactly the same as on a 2D map.
+
+---
+
+## How Does Similarity Work?
+
+Once you have two vectors, you need to measure how close they are. The standard measure is <GlossaryTooltip client:load term="cosine similarity">cosine similarity</GlossaryTooltip>.
+
+**Cosine similarity measures the angle between two vectors:**
+
+- **1.0** — identical direction → same meaning
+- **0.0** — perpendicular → unrelated
+- **-1.0** — opposite direction → opposite meaning
+
+Why the angle and not the distance? Because we care about *direction* (meaning), not *magnitude* (length). A short sentence and a long paragraph about the same topic should be similar, even though their vectors have different magnitudes.
+
+<MermaidDiagram client:visible chart={`flowchart LR
+    S1["'How do I get a refund?'"] --> E1["[0.12, -0.05, 0.89, ...]"]
+    S2["'Return policy details'"] --> E2["[0.15, -0.03, 0.87, ...]"]
+    E1 --> CS{Cosine Similarity}
+    E2 --> CS
+    CS --> Score["0.94 — Very Similar!"]
+    style S1 fill:#3B82F6,color:#fff
+    style S2 fill:#22C55E,color:#fff
+    style CS fill:#F59E0B,color:#000
+    style Score fill:#22C55E,color:#fff`}
+  caption="Two sentences with similar meaning produce vectors with high cosine similarity."
+/>
+
+---
+
+## Why 768 Numbers?
+
+Each number in the vector captures one *aspect* of meaning. No single number maps to a concept you'd recognise (like "is this about food?"). Instead, the meaning is distributed across all dimensions working together.
+
+Think of it like describing a colour. You could say a colour is `rgb(255, 165, 0)`. No single number tells you it's orange — but all three numbers together do. Embeddings work the same way, just with 768 numbers instead of 3.
+
+---
+
+## Try It: The Nearest Neighbour Explorer
+
+Click any point on the scatter plot to see its 3 most similar sentences. Or type your own sentence to see where it lands.
+
+The plot below shows 20 sentences projected from high-dimensional space onto 2D. Notice how related sentences cluster together naturally.
+
+<NearestNeighbourExplorer client:visible />
+
+---
+
+## Choosing an Embedding Model
+
+Not all embedding models are equal. A bigger model captures more nuance but costs more to run. Here are the common choices:
+
+| Model | Dimensions | Quality | Speed | Cost |
+|---|---|---|---|---|
+| `all-MiniLM-L6-v2` | 384 | Good | Very Fast | Free (runs in browser) |
+| `text-embedding-3-small` | 1536 | Very Good | Fast | $0.02 / 1M tokens |
+| `text-embedding-3-large` | 3072 | Excellent | Medium | $0.13 / 1M tokens |
+
+For learning and prototyping, `all-MiniLM-L6-v2` is perfect — it runs entirely in your browser using Transformers.js, with zero API costs. That's what the Playground uses. [src: transformersjs_docs]
+
+### The Critical Rule: Match Your Models
+
+When you embed your chunks with model A, you **must** search with model A. Different models create different vector spaces — they're like different maps of the same city. A location from Google Maps doesn't work on an Apple Maps grid. [src: chromadb_docs]
+
+This is one of the most common RAG bugs, and the Explorer above demonstrates it — every point was embedded with the same model.
+
+<Callout type="warning">Mixing embedding models is the number one silent RAG bug. Your similarity scores will look normal but return irrelevant results. Always use the same model for indexing and querying.</Callout>
+
+---
+
+## Common Misconceptions About Embeddings
+
+**"Embeddings understand language the way humans do."**
+
+No — embedding models are trained to be useful, not to understand. They learn that certain words appear in similar contexts and group them together. The model doesn't "know" that a refund and a return are related — it learned that documents about refunds and documents about returns tend to contain similar surrounding words. The result is practically useful similarity, but the mechanism is statistical, not semantic.
+
+**"Higher dimensions always means better."**
+
+Not necessarily. A 384-dimension model can outperform a 3072-dimension model on specific tasks if it was trained on more relevant data. Always check the [MTEB leaderboard](https://huggingface.co/spaces/mteb/leaderboard) for your specific use case rather than picking by dimension count alone.
+
+**"You need an internet connection or API to use embeddings."**
+
+This is false, and it's why this course's Playground works entirely offline. Models like `all-MiniLM-L6-v2` run entirely in your browser via Transformers.js — no server, no API key, no internet required after the first load.
+
+**"All embedding models can be swapped interchangeably."**
+
+The most dangerous misconception in RAG. Once you've embedded your document chunks with model A, every query must also be embedded with model A. Switching models mid-way requires re-embedding your entire document collection. Plan your model choice before you start ingesting at scale.
+
+---
+
+## Embedding Quality: How to Measure It
+
+Before you pick an embedding model, know how quality is measured. The [MTEB (Massive Text Embedding Benchmark)](https://huggingface.co/spaces/mteb/leaderboard) is the standard benchmark. It tests models across 56 datasets and 8 task types.
+
+For RAG specifically, the most important task types are:
+
+- **Retrieval** — given a query, find the most relevant passages. This is your primary use case.
+- **Semantic Textual Similarity (STS)** — how well does the model judge if two sentences mean the same thing?
+
+A model with a high retrieval score on MTEB will almost certainly work well for your RAG pipeline. Models like `BAAI/bge-large-en-v1.5` and `text-embedding-3-small` consistently rank near the top for retrieval quality.
+
+---
+
+## From Chunks to Vectors
+
+Here's where the RAG pipeline stands after this chapter:
+
+1. **Ingest** — Load your documents (Chapter 2)
+2. **Chunk** — Split into manageable pieces (Chapter 2)
+3. **Embed** — Convert each chunk into a vector **(This chapter)**
+4. **Store** — Save vectors in a database (Chapter 4)
+5. **Retrieve** — Find relevant chunks by similarity (Chapter 5)
+6. **Generate** — Answer using retrieved context (Chapter 6)
+
+You've now completed steps 1–3. Your text has been transformed from raw words into searchable meaning-vectors. Next, you need somewhere to store them and search them efficiently.
+
+---
+
+## What You Just Built
+
+In this chapter, you learned to:
+
+1. Convert any text into a vector (a list of numbers that captures meaning)
+2. Measure similarity between vectors using cosine similarity
+3. Use an embedding model to find semantically related text
+4. Understand why matching your embedding model matters
+
+**Next up:** you have vectors, but where do you store millions of them and search them fast? That's what vector databases do.
+
+---
+
+## Quick Check
+
+<QuickCheck client:visible chapterId="3-embeddings" questions={[
+  {
+    question: "What does cosine similarity measure?",
+    options: [
+      "The length of two vectors",
+      "The angle between two vectors (direction similarity)",
+      "The number of matching words between two sentences",
+      "The distance between two points in space"
+    ],
+    correct: 1,
+    explanation: "Cosine similarity measures the angle between two vectors. A small angle (high score) means the vectors point in similar directions, which in embedding space means similar meaning."
+  },
+  {
+    question: "Why must you use the same embedding model for chunks and queries?",
+    options: [
+      "Different models are slower",
+      "Different models create different vector spaces, making similarity scores meaningless",
+      "It's not strictly necessary, just a best practice",
+      "Different models produce different numbers of dimensions"
+    ],
+    correct: 1,
+    explanation: "Each embedding model creates its own vector space — like different maps of the same city. A vector from model A has no meaningful relationship to vectors from model B. This is one of the most common RAG bugs."
+  }
+]} />
+
+---
+
+<FeedbackWidget client:visible chapterId="3-embeddings" />
+
+---
+
+**Sources:**
+
+- Jay Alammar — ["The Illustrated Word2Vec"](https://jalammar.github.io/illustrated-word2vec/) (visual guide to understanding embeddings)
+- [Hugging Face MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) — embedding model benchmarks
+- [Transformers.js documentation](https://huggingface.co/docs/transformers.js/) — running models in the browser
+- [ChromaDB documentation](https://docs.trychroma.com/) — embedding storage and retrieval

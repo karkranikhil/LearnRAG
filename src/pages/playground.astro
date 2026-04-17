@@ -1,0 +1,339 @@
+---
+import '../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Playground | LearnRAG</title>
+    <meta name="description" content="Interactive RAG pipeline playground. Choose between a generic 5-step RAG pipeline or the Salesforce Data Cloud pipeline with DLO, DMO, and UDMO." />
+    <meta name="theme-color" content="#16131e" />
+    <link rel="canonical" href="https://learnrag.online/playground/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://learnrag.online/playground/" />
+    <meta property="og:title" content="RAG Playground | LearnRAG" />
+    <meta property="og:description" content="Ingest, embed, search, and generate — entirely in your browser. No API keys. No setup." />
+    <meta property="og:image" content="https://learnrag.online/Thumbnail.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="LearnRAG — Build a RAG app. Right here. Right now." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://learnrag.online/Thumbnail.png" />
+    <meta name="twitter:image:alt" content="LearnRAG — Build a RAG app. Right here. Right now." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        background: #16131e;
+        color: #f0f0f0;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+      }
+
+      .bg-grid {
+        position: fixed; inset: 0; z-index: 0; pointer-events: none;
+        background-image:
+          linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+        background-size: 60px 60px;
+      }
+      .bg-glow {
+        position: fixed; width: 600px; height: 600px;
+        top: -150px; right: -200px; border-radius: 9999px;
+        background: rgba(168,85,247,0.04); filter: blur(140px);
+        pointer-events: none; z-index: 0;
+      }
+
+      nav {
+        position: relative; z-index: 10;
+        padding: 0 2rem; height: 3.5rem;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        display: flex; align-items: center; justify-content: space-between;
+        background: rgba(22,19,30,0.6); backdrop-filter: blur(20px);
+      }
+      .nav-logo {
+        font-size: 1.125rem; font-weight: 700; letter-spacing: -0.03em;
+        color: #f0f0f0; text-decoration: none;
+      }
+      .nav-links {
+        display: flex; gap: 1.5rem; list-style: none;
+      }
+      .nav-links a {
+        font-size: 0.875rem; color: #8b8b8b; text-decoration: none;
+        transition: color 0.15s;
+      }
+      .nav-links a:hover { color: #f0f0f0; }
+
+      main {
+        position: relative; z-index: 1;
+        max-width: 900px; margin: 0 auto;
+        padding: 5rem 2rem 4rem;
+        display: flex; flex-direction: column; align-items: center;
+      }
+
+      .eyebrow {
+        font-size: 0.6875rem; font-family: 'JetBrains Mono', monospace;
+        font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+        color: #636363; margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem; font-weight: 700; letter-spacing: -0.04em;
+        text-align: center; margin-bottom: 0.75rem; line-height: 1.15;
+      }
+      .subtitle {
+        font-size: 1rem; color: #8b8b8b; text-align: center;
+        max-width: 480px; line-height: 1.6; margin-bottom: 3.5rem;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        width: 100%;
+      }
+
+      .card {
+        position: relative;
+        padding: 2rem;
+        background: rgba(22,19,30,0.8);
+        border-radius: 1.25rem;
+        border: 1px solid rgba(255,255,255,0.07);
+        backdrop-filter: blur(12px);
+        display: flex; flex-direction: column; gap: 0;
+        text-decoration: none; color: inherit;
+        transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+        overflow: hidden;
+      }
+      .card::before {
+        content: '';
+        position: absolute; inset: 0; border-radius: 1.25rem;
+        opacity: 0; transition: opacity 0.2s;
+      }
+      .card-generic::before  { background: radial-gradient(ellipse at top left, rgba(59,130,246,0.08), transparent 60%); }
+      .card-salesforce::before { background: radial-gradient(ellipse at top left, rgba(168,85,247,0.08), transparent 60%); }
+      .card:hover { transform: translateY(-2px); }
+      .card-generic:hover  { border-color: rgba(59,130,246,0.35);  box-shadow: 0 8px 40px rgba(59,130,246,0.1); }
+      .card-salesforce:hover { border-color: rgba(168,85,247,0.35); box-shadow: 0 8px 40px rgba(168,85,247,0.1); }
+      .card:hover::before { opacity: 1; }
+
+      .card-badge {
+        display: inline-flex; align-items: center; gap: 0.375rem;
+        font-size: 0.625rem; font-family: 'JetBrains Mono', monospace;
+        font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+        padding: 0.2rem 0.6rem; border-radius: 9999px;
+        margin-bottom: 1.25rem; width: fit-content;
+        position: relative; z-index: 1;
+      }
+      .badge-generic    { color: #60a5fa; background: rgba(59,130,246,0.1);  border: 1px solid rgba(59,130,246,0.25); }
+      .badge-salesforce { color: #b87dff; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.25); }
+
+      .card-title {
+        font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em;
+        margin-bottom: 0.5rem; line-height: 1.2;
+        position: relative; z-index: 1;
+      }
+      .card-desc {
+        font-size: 0.875rem; color: #8b8b8b; line-height: 1.6;
+        margin-bottom: 1.75rem;
+        position: relative; z-index: 1;
+      }
+
+      .steps-list {
+        list-style: none; display: flex; flex-direction: column; gap: 0;
+        margin-bottom: 1.5rem;
+        position: relative; z-index: 1;
+      }
+      .step-item {
+        display: flex; align-items: flex-start; gap: 0.625rem;
+        padding: 0.375rem 0;
+        position: relative;
+      }
+      .step-item:not(:last-child)::after {
+        content: '';
+        position: absolute; left: 10px; top: 28px;
+        width: 2px; height: calc(100% - 10px);
+        background: rgba(255,255,255,0.05);
+      }
+      .step-dot {
+        width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.6rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+        margin-top: 1px;
+      }
+      .dot-generic    { background: rgba(59,130,246,0.12);  border: 1.5px solid rgba(59,130,246,0.3);  color: #60a5fa; }
+      .dot-salesforce { background: rgba(168,85,247,0.12); border: 1.5px solid rgba(168,85,247,0.3); color: #b87dff; }
+      .step-text {
+        display: flex; flex-direction: column;
+      }
+      .step-label { font-size: 0.8125rem; font-weight: 600; color: #c0c0c0; }
+      .step-sub   { font-size: 0.6875rem; color: #636363; line-height: 1.4; }
+
+      .card-cta {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0.75rem 1.125rem;
+        border-radius: 0.75rem; font-weight: 600; font-size: 0.9rem;
+        border: none; cursor: pointer; transition: opacity 0.15s;
+        position: relative; z-index: 1; text-decoration: none;
+        margin-top: auto;
+      }
+      .cta-generic    { background: #3b82f6; color: #fff; box-shadow: 0 0 24px rgba(59,130,246,0.25); }
+      .cta-salesforce { background: #a855f7; color: #fff; box-shadow: 0 0 24px rgba(168,85,247,0.25); }
+      .card-cta:hover { opacity: 0.9; }
+      .cta-arrow { font-size: 1.1rem; line-height: 1; }
+
+      .or-divider {
+        display: flex; align-items: center; gap: 1rem;
+        font-size: 0.75rem; color: #3a3a3a; margin: 0.5rem 0;
+        font-family: 'JetBrains Mono', monospace;
+      }
+      .or-divider span { flex: 1; height: 1px; background: rgba(255,255,255,0.04); }
+
+      @media (max-width: 640px) {
+        h1 { font-size: 1.75rem; }
+        .cards { grid-template-columns: 1fr; }
+        main { padding: 3rem 1.25rem 3rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+
+    <nav>
+      <a href="/" class="nav-logo">LearnRAG</a>
+      <ul class="nav-links">
+        <li><a href="/learn/1-why-rag/">Learn</a></li>
+        <li><a href="/labs/">Labs</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <div class="eyebrow">Interactive Playground</div>
+      <h1>Choose your pipeline</h1>
+      <p class="subtitle">
+        Both playgrounds run entirely in your browser — no API keys, no setup. Pick the one that matches your use case.
+      </p>
+
+      <div class="cards">
+
+        <!-- Generic RAG -->
+        <a href="/playground/generic/" class="card card-generic">
+          <div class="card-badge badge-generic">
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
+            Generic
+          </div>
+          <div class="card-title">RAG Pipeline</div>
+          <p class="card-desc">
+            The universal RAG flow. Learn how any retrieval-augmented system works — from raw text to a grounded answer.
+          </p>
+          <ul class="steps-list">
+            <li class="step-item">
+              <div class="step-dot dot-generic">1</div>
+              <div class="step-text">
+                <span class="step-label">Ingest</span>
+                <span class="step-sub">Load a document into the pipeline</span>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-dot dot-generic">2</div>
+              <div class="step-text">
+                <span class="step-label">Chunking</span>
+                <span class="step-sub">Split text into retrievable segments</span>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-dot dot-generic">3</div>
+              <div class="step-text">
+                <span class="step-label">Embedding</span>
+                <span class="step-sub">Convert chunks to semantic vectors</span>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-dot dot-generic">4</div>
+              <div class="step-text">
+                <span class="step-label">Search</span>
+                <span class="step-sub">Find the most relevant chunks</span>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-dot dot-generic">5</div>
+              <div class="step-text">
+                <span class="step-label">Generate</span>
+                <span class="step-sub">Compose a grounded answer</span>
+              </div>
+            </li>
+          </ul>
+          <span class="card-cta cta-generic">
+            Open RAG Playground
+            <span class="cta-arrow">→</span>
+          </span>
+        </a>
+
+        <!-- Salesforce Data Cloud -->
+        <a href="/playground/salesforce/" class="card card-salesforce">
+          <div class="card-badge badge-salesforce">
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
+            Salesforce
+          </div>
+          <div class="card-title">Data Cloud Pipeline</div>
+          <p class="card-desc">
+            The Salesforce Data Cloud unstructured RAG flow — from Data Stream ingestion through UDLO, UDMO, and the Search Index.
+          </p>
+          <ul class="steps-list">
+            <li class="step-item">
+              <div class="step-dot dot-salesforce">1</div>
+              <div class="step-text">
+                <span class="step-label">Data Stream</span>
+                <span class="step-sub">Trigger a source load event</span>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-dot dot-salesforce">2</div>
+              <div class="step-text">
+                <span class="step-label">DLO Populate</span>
+                <span class="step-sub">Raw metadata into UDLO fields</span>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-dot dot-salesforce">3</div>
+              <div class="step-text">
+                <span class="step-label">DMO Populate</span>
+                <span class="step-sub">UDMO auto-mapped 1:1 from UDLO</span>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-dot dot-salesforce">4</div>
+              <div class="step-text">
+                <span class="step-label">Chunking</span>
+                <span class="step-sub">Build Chunk DMO for Search Index</span>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-dot dot-salesforce">5</div>
+              <div class="step-text">
+                <span class="step-label">Embedding</span>
+                <span class="step-sub">Generate vectors into IDMO</span>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-dot dot-salesforce">6</div>
+              <div class="step-text">
+                <span class="step-label">Retriever</span>
+                <span class="step-sub">Query IDMO and compose answer</span>
+              </div>
+            </li>
+          </ul>
+          <span class="card-cta cta-salesforce">
+            Open Data Cloud Playground
+            <span class="cta-arrow">→</span>
+          </span>
+        </a>
+
+      </div>
+    </main>
+  </body>
+</html>

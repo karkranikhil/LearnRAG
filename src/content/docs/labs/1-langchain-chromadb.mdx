@@ -1,0 +1,433 @@
+---
+title: "Lab 1: LangChain + ChromaDB"
+description: "Build a complete RAG pipeline using LangChain and ChromaDB in Python. Step-by-step, with full code examples."
+---
+
+<div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; background: rgba(74,222,128,0.05); border: 1px solid rgba(74,222,128,0.15); border-radius: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4ade80; background: rgba(74,222,128,0.1); padding: 0.125rem 0.5rem; border-radius: 9999px;">HANDS-ON LAB</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">~30 minutes</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">Beginner-friendly</span>
+  <span style="font-size: 0.8125rem; color: #b87dff;">Builder badge</span>
+</div>
+
+You have read the theory. Now you build the thing.
+
+By the end of this lab, you will have a working RAG pipeline on your own machine. It will load a text file, chunk it, embed it, store it in a vector database, and answer questions about it. No API keys required for the core pipeline.
+
+---
+
+## Prerequisites
+
+Before you start, make sure you have:
+
+- **Python 3.8 or higher** installed. Check with `python --version` in your terminal.
+- **pip** (comes with Python). Check with `pip --version`.
+- A text file you want to ask questions about. Any `.txt` file works. If you do not have one, create a file called `notes.txt` and paste a few paragraphs from a Wikipedia article.
+
+That is it. No GPU needed. No cloud account. Everything runs locally.
+
+---
+
+## Step 1: Install Dependencies
+
+Open your terminal and run:
+
+```python
+pip install langchain langchain-community chromadb sentence-transformers
+```
+
+Here is what each package does:
+
+- **langchain** — The framework that connects all the pieces of the RAG pipeline together.
+- **langchain-community** — Community-maintained integrations, including document loaders and vector store connectors.
+- **chromadb** — A lightweight vector database that runs locally. No server to set up.
+- **sentence-transformers** — Lets you run embedding models on your own machine for free.
+
+If the install takes a few minutes, that is normal. `sentence-transformers` pulls in PyTorch, which is a large download the first time.
+
+---
+
+## Step 2: Load a Document
+
+The first step in any RAG pipeline is getting your data in. LangChain has "document loaders" for dozens of file types. We will start with the simplest one: a plain text file.
+
+```python
+from langchain_community.document_loaders import TextLoader
+
+# Point this to your text file
+loader = TextLoader("notes.txt")
+documents = loader.load()
+
+print(f"Loaded {len(documents)} document(s)")
+print(f"First 200 characters: {documents[0].page_content[:200]}")
+```
+
+Each "document" is an object with two things:
+
+- `page_content` — the actual text
+- `metadata` — information about where it came from (file path, page number, etc.)
+
+The metadata matters later when you want your chatbot to cite its sources.
+
+### Loading other file types
+
+LangChain has loaders for PDFs, CSVs, web pages, and more. The pattern is always the same:
+
+```python
+# PDF files
+from langchain_community.document_loaders import PyPDFLoader
+loader = PyPDFLoader("report.pdf")
+
+# Web pages
+from langchain_community.document_loaders import WebBaseLoader
+loader = WebBaseLoader("https://example.com/article")
+
+# Markdown files
+from langchain_community.document_loaders import UnstructuredMarkdownLoader
+loader = UnstructuredMarkdownLoader("readme.md")
+```
+
+For this lab, stick with `TextLoader`. It has zero extra dependencies and works every time.
+
+---
+
+## Step 3: Split into Chunks
+
+You cannot feed an entire document into an LLM at once. Context windows have limits, and even if they did not, stuffing in everything creates noise. You need to break the document into smaller, meaningful pieces.
+
+LangChain's `RecursiveCharacterTextSplitter` is the standard choice. It tries to split on paragraph breaks first, then sentences, then words. This keeps chunks as coherent as possible.
+
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=50,
+    length_function=len,
+    separators=["\n\n", "\n", ". ", " ", ""]
+)
+
+chunks = splitter.split_documents(documents)
+
+print(f"Split into {len(chunks)} chunks")
+print(f"\n--- Chunk 1 ---")
+print(chunks[0].page_content)
+print(f"\n--- Chunk 2 ---")
+print(chunks[1].page_content)
+```
+
+**What the parameters mean:**
+
+- `chunk_size=500` — Each chunk will be roughly 500 characters. This is a good starting point for most documents.
+- `chunk_overlap=50` — Adjacent chunks share 50 characters of overlap. This prevents ideas from getting cut in half at chunk boundaries.
+- `separators` — The splitter tries to break at paragraph boundaries first (`\n\n`), then line breaks, then sentences, then words. It only falls through to the next separator if the chunk would be too large.
+
+Play with these numbers. If your chunks feel too short to make sense on their own, increase `chunk_size`. If they feel bloated with irrelevant info, decrease it.
+
+---
+
+## Step 4: Create Embeddings and Store in ChromaDB
+
+Now you turn those text chunks into vectors (lists of numbers that capture meaning) and store them in ChromaDB so you can search them later.
+
+```python
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+
+# This model runs locally — no API key needed
+# First run downloads the model (~90MB), then it is cached
+embedding_model = HuggingFaceEmbeddings(
+    model_name="all-MiniLM-L6-v2"
+)
+
+# Create the vector store and add your chunks
+vectorstore = Chroma.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    persist_directory="./my_vectorstore"
+)
+
+print(f"Stored {len(chunks)} chunks in ChromaDB")
+```
+
+**What just happened:**
+
+1. The embedding model (`all-MiniLM-L6-v2`) converted each chunk's text into a 384-dimensional vector.
+2. ChromaDB stored those vectors along with the original text and metadata.
+3. The `persist_directory` means your data is saved to disk. If you restart your script, you can reload it without re-embedding.
+
+To reload an existing vector store later:
+
+```python
+vectorstore = Chroma(
+    persist_directory="./my_vectorstore",
+    embedding_function=embedding_model
+)
+```
+
+---
+
+## Step 5: Query the System
+
+This is the moment it all comes together. You ask a question, and the system finds the most relevant chunks from your document.
+
+```python
+query = "What is the main topic of this document?"
+
+results = vectorstore.similarity_search(query, k=3)
+
+print(f"Found {len(results)} relevant chunks:\n")
+for i, doc in enumerate(results):
+    print(f"--- Result {i+1} ---")
+    print(doc.page_content)
+    print(f"Source: {doc.metadata}")
+    print()
+```
+
+**What happens under the hood:**
+
+1. Your query gets embedded into a vector using the same model.
+2. ChromaDB finds the 3 chunks (`k=3`) whose vectors are closest to your query vector.
+3. Those chunks are returned, ranked by similarity.
+
+Try different queries. Try vague ones and specific ones. Notice how the results change. This is retrieval in action.
+
+### Getting similarity scores
+
+If you want to see how similar each result actually is:
+
+```python
+results_with_scores = vectorstore.similarity_search_with_score(query, k=3)
+
+for doc, score in results_with_scores:
+    print(f"Score: {score:.4f}")
+    print(f"Text: {doc.page_content[:100]}...")
+    print()
+```
+
+Lower scores mean more similar (ChromaDB uses L2 distance by default). If you see scores close to 0, the match is very strong. Scores above 1.5 usually mean the chunk is not very relevant.
+
+---
+
+## Step 6: Add an LLM for Generation
+
+Retrieval alone gives you relevant chunks. But the user asked a *question* — they want an *answer*. This is where the LLM comes in. It reads the retrieved chunks and writes a human-readable response.
+
+### Option A: Using a free Hugging Face model (no API key)
+
+For a completely free, local setup, you can use a small model via Hugging Face's pipeline:
+
+```python
+from langchain_community.llms import HuggingFacePipeline
+from transformers import pipeline
+
+# This downloads a small model (~500MB first time)
+pipe = pipeline(
+    "text2text-generation",
+    model="google/flan-t5-base",
+    max_new_tokens=256
+)
+
+llm = HuggingFacePipeline(pipeline=pipe)
+```
+
+Note: `flan-t5-base` is small and fast but not as capable as larger models. It works well for simple Q&A over short documents. For production use, you would want a larger model.
+
+### Option B: Using OpenAI (requires API key)
+
+If you have an OpenAI API key, this gives better answers:
+
+```python
+from langchain_community.chat_models import ChatOpenAI
+
+# Set your API key as an environment variable:
+# export OPENAI_API_KEY="sk-your-key-here"
+
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+```
+
+### Building the RAG chain
+
+Whichever LLM you chose, the RAG chain is the same:
+
+```python
+from langchain.chains import RetrievalQA
+from langchain.prompts import PromptTemplate
+
+# The prompt tells the LLM how to use the retrieved chunks
+prompt_template = PromptTemplate(
+    input_variables=["context", "question"],
+    template="""Use the following pieces of context to answer the question.
+If you don't know the answer based on the context, say "I don't have enough information to answer that."
+Don't make up information that isn't in the context.
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:"""
+)
+
+# Build the chain
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",
+    retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
+    chain_type_kwargs={"prompt": prompt_template},
+    return_source_documents=True
+)
+
+# Ask a question
+response = qa_chain.invoke({"query": "What is the main topic of this document?"})
+
+print("Answer:", response["result"])
+print("\nSources used:")
+for doc in response["source_documents"]:
+    print(f"  - {doc.page_content[:100]}...")
+```
+
+That is it. You have a working RAG pipeline. The LLM reads only the chunks your retriever found relevant, and it answers based on that context — not its training data.
+
+---
+
+## Full Working Code
+
+Here is everything in one script you can copy, paste, and run:
+
+```python
+"""
+Lab 1: Complete RAG Pipeline with LangChain + ChromaDB
+Run: pip install langchain langchain-community chromadb sentence-transformers transformers
+"""
+
+from langchain_community.document_loaders import TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain.chains import RetrievalQA
+from langchain.prompts import PromptTemplate
+from langchain_community.llms import HuggingFacePipeline
+from transformers import pipeline
+
+# --- Step 1: Load ---
+print("Loading document...")
+loader = TextLoader("notes.txt")
+documents = loader.load()
+print(f"Loaded {len(documents)} document(s)")
+
+# --- Step 2: Chunk ---
+print("Splitting into chunks...")
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=50,
+    separators=["\n\n", "\n", ". ", " ", ""]
+)
+chunks = splitter.split_documents(documents)
+print(f"Created {len(chunks)} chunks")
+
+# --- Step 3: Embed and Store ---
+print("Creating embeddings and storing in ChromaDB...")
+embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+vectorstore = Chroma.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    persist_directory="./my_vectorstore"
+)
+print(f"Stored {len(chunks)} chunks")
+
+# --- Step 4: Set up LLM ---
+print("Loading language model...")
+pipe = pipeline(
+    "text2text-generation",
+    model="google/flan-t5-base",
+    max_new_tokens=256
+)
+llm = HuggingFacePipeline(pipeline=pipe)
+
+# --- Step 5: Build RAG Chain ---
+prompt_template = PromptTemplate(
+    input_variables=["context", "question"],
+    template="""Use the following context to answer the question.
+If you don't know the answer, say "I don't have enough information."
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:"""
+)
+
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",
+    retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
+    chain_type_kwargs={"prompt": prompt_template},
+    return_source_documents=True
+)
+
+# --- Step 6: Ask Questions ---
+print("\n--- RAG Pipeline Ready ---\n")
+
+questions = [
+    "What is the main topic of this document?",
+    "What are the key points mentioned?",
+    "Summarize the most important information."
+]
+
+for question in questions:
+    print(f"Q: {question}")
+    response = qa_chain.invoke({"query": question})
+    print(f"A: {response['result']}")
+    print(f"   (Based on {len(response['source_documents'])} retrieved chunks)")
+    print()
+```
+
+---
+
+## Common Errors and Fixes
+
+### "No module named 'chromadb'"
+You need to install the dependencies. Run:
+```python
+pip install langchain langchain-community chromadb sentence-transformers
+```
+
+### "FileNotFoundError: notes.txt"
+The script cannot find your text file. Make sure `notes.txt` is in the same directory where you run the script. Use the full path if needed:
+```python
+loader = TextLoader("/full/path/to/your/notes.txt")
+```
+
+### "RuntimeError: No CUDA GPUs are available"
+This is fine. The embedding model works on CPU. It is slower but it works. If you see this as a warning (not an error), you can ignore it.
+
+### ChromaDB gives "empty collection" errors
+This usually means the persist directory is corrupted. Delete the `./my_vectorstore` folder and run again:
+```python
+rm -rf ./my_vectorstore
+```
+
+### Chunks are too small or too large
+Adjust the `chunk_size` parameter. For short documents (under 1000 words), try `chunk_size=200`. For long documents (books, reports), try `chunk_size=1000`. Always keep some overlap.
+
+### The LLM gives bad answers
+If you are using `flan-t5-base`, keep your questions simple and direct. This is a small model. For better answers, use a larger model (Option B with OpenAI) or try `flan-t5-large` if your machine can handle it.
+
+---
+
+## What You Built
+
+You now have a complete RAG pipeline that:
+
+1. Loads a document from disk
+2. Splits it into overlapping chunks
+3. Embeds those chunks using a free, local model
+4. Stores them in a persistent vector database
+5. Retrieves the most relevant chunks for any query
+6. Generates a natural language answer grounded in your data
+
+This is the same fundamental architecture that powers enterprise RAG systems. The models are smaller and the data is simpler, but the pattern is identical.
+
+**Next up:** [Lab 2: LlamaIndex Comparison](/labs/2-llamaindex-comparison/) — Build the same pipeline with a different framework and see how the two approaches compare.

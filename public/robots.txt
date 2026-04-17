@@ -1,0 +1,34 @@
+User-agent: *
+Allow: /
+
+# Block bot access to pagefind static assets (not content)
+Disallow: /pagefind/
+
+# AI crawlers — allow indexing
+User-agent: GPTBot
+Allow: /
+Disallow: /pagefind/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /pagefind/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /pagefind/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /pagefind/
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /pagefind/
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+Sitemap: https://learnrag.online/sitemap-index.xml

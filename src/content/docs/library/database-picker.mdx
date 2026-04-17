@@ -1,0 +1,299 @@
+---
+title: "Vector Database Picker"
+description: "Answer 4 questions and get a personalised vector database recommendation for your RAG project."
+---
+
+import DatabasePicker from '../../../components/react/DatabasePicker';
+
+<div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.15); border-radius: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #fbbf24; background: rgba(251,191,36,0.1); padding: 0.125rem 0.5rem; border-radius: 9999px;">INTERACTIVE TOOL</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">Answer 4 questions, get a recommendation</span>
+</div>
+
+Picking a vector database is one of those decisions that feels high-stakes but does not need to be. For learning and prototyping, any of them work. For production, the differences start to matter.
+
+Use the tool below to get a recommendation based on your situation. Then read the comparison table for the full picture.
+
+---
+
+## Find Your Database
+
+Answer four questions and get a recommendation. Takes 30 seconds.
+
+<DatabasePicker client:visible />
+
+---
+
+## Full Comparison
+
+Here is every major vector database side by side. This table covers the factors that actually matter when you are choosing.
+
+| Database | Hosting | Free Tier | Hybrid Search | Max Scale | Language | Best For |
+|---|---|---|---|---|---|---|
+| **ChromaDB** | Local / embedded | Unlimited (self-hosted) | No (vector only) | ~1M vectors | Python | Learning, prototyping, small projects |
+| **Qdrant** | Local or cloud | 1GB free cloud | Yes (sparse + dense) | Billions | Rust (Python/JS clients) | Production RAG, hybrid search |
+| **FAISS** | Local only (library) | Unlimited (self-hosted) | No (vector only) | Billions | C++ (Python bindings) | Maximum speed, research, offline use |
+| **Weaviate** | Local or cloud | Free sandbox cluster | Yes (BM25 + vector) | Billions | Go (Python/JS clients) | Multi-modal search, GraphQL fans |
+| **Pinecone** | Cloud only | Free tier (limited) | Yes (sparse-dense) | Billions | Managed service | Teams who want zero ops |
+| **Milvus** | Local or cloud (Zilliz) | Zilliz free tier | Yes (sparse + dense) | Trillions | Go/C++ (Python/JS clients) | Very large scale, enterprise |
+
+---
+
+## Database Profiles
+
+### ChromaDB
+
+ChromaDB is the easiest vector database to get started with. Install it with pip, create a collection, and start storing vectors. No server to configure. No account to create. It runs embedded in your Python process.
+
+```python
+pip install chromadb
+```
+
+```python
+import chromadb
+
+client = chromadb.PersistentClient(path="./my_db")
+collection = client.get_or_create_collection("documents")
+
+collection.add(
+    documents=["This is a test document"],
+    ids=["doc1"]
+)
+
+results = collection.query(
+    query_texts=["test"],
+    n_results=3
+)
+```
+
+**Strengths:**
+
+- ✅ Zero setup
+- ✅ Great Python API
+- ✅ Perfect for learning and prototyping
+
+**Limitations:**
+
+- ⚠️ No built-in hybrid search
+- ⚠️ Performance degrades past ~1 million vectors
+- ⚠️ No managed cloud offering
+
+**Documentation:** [docs.trychroma.com](https://docs.trychroma.com/)
+
+---
+
+### Qdrant
+
+Qdrant is the best all-rounder for production RAG. It supports hybrid search (combining vector similarity with keyword matching), has a generous free cloud tier, and scales well. The API is clean and well-documented.
+
+```python
+pip install qdrant-client
+```
+
+```python
+from qdrant_client import QdrantClient
+from qdrant_client.models import VectorParams, Distance
+
+client = QdrantClient(":memory:")  # or url="http://localhost:6333"
+
+client.create_collection(
+    collection_name="documents",
+    vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+)
+```
+
+**Strengths:**
+
+- ✅ Hybrid search out of the box
+- ✅ Free 1GB cloud tier
+- ✅ Excellent filtering and payload support
+- ✅ Fast Rust implementation
+
+**Limitations:**
+
+- ⚠️ Slightly more setup than ChromaDB
+- ⚠️ Cloud free tier is capped at 1GB
+
+**Documentation:** [qdrant.tech/documentation](https://qdrant.tech/documentation/)
+
+---
+
+### FAISS
+
+FAISS (Facebook AI Similarity Search) is not a database — it is a library. There is no server, no API, no persistence by default. You load vectors into memory, build an index, and search. It is the fastest option for pure vector search on a single machine.
+
+```python
+pip install faiss-cpu
+```
+
+```python
+import faiss
+import numpy as np
+
+dimension = 384
+index = faiss.IndexFlatL2(dimension)
+
+# Add vectors (numpy arrays)
+vectors = np.random.rand(1000, dimension).astype("float32")
+index.add(vectors)
+
+# Search
+query = np.random.rand(1, dimension).astype("float32")
+distances, indices = index.search(query, k=5)
+```
+
+**Strengths:**
+
+- ✅ Extremely fast vector search
+- ✅ No server overhead
+- ✅ Scales to billions with the right index type
+- ✅ Battle-tested at Meta
+
+**Limitations:**
+
+- ⚠️ No built-in persistence by default
+- ⚠️ No metadata filtering
+- ⚠️ No hybrid search
+- ⚠️ Requires more custom engineering
+
+**Documentation:** [github.com/facebookresearch/faiss](https://github.com/facebookresearch/faiss)
+
+---
+
+### Weaviate
+
+Weaviate is a full-featured vector database with a unique twist: it uses a GraphQL API and has built-in support for multi-modal data (text, images, etc.). It has strong hybrid search combining BM25 keyword matching with vector search.
+
+```python
+pip install weaviate-client
+```
+
+```python
+import weaviate
+
+client = weaviate.connect_to_local()  # or connect_to_wcs() for cloud
+
+collection = client.collections.create(
+    name="Document",
+    vectorizer_config=None  # bring your own vectors
+)
+```
+
+**Strengths:**
+
+- ✅ Excellent hybrid search
+- ✅ Multi-modal support
+- ✅ Free sandbox cluster for testing
+- ✅ GraphQL-first API option
+
+**Limitations:**
+
+- ⚠️ Heavier local setup than ChromaDB or Qdrant
+- ⚠️ API changed significantly across versions
+
+**Documentation:** [weaviate.io/developers/weaviate](https://weaviate.io/developers/weaviate)
+
+---
+
+### Pinecone
+
+Pinecone is a fully managed cloud service. You do not run anything locally. You create an index via their API, send vectors to it, and query it. They handle scaling, replication, and infrastructure.
+
+```python
+pip install pinecone-client
+```
+
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key="your-api-key")
+
+index = pc.Index("my-index")
+index.upsert(vectors=[
+    {"id": "doc1", "values": [0.1, 0.2, ...], "metadata": {"source": "notes.txt"}}
+])
+
+results = index.query(vector=[0.1, 0.2, ...], top_k=3)
+```
+
+**Strengths:**
+
+- ✅ Zero infrastructure management
+- ✅ Good free tier for small projects
+- ✅ Automatic scaling
+
+**Limitations:**
+
+- ⚠️ Cloud-only deployment
+- ⚠️ Vendor lock-in risk
+- ⚠️ Free tier is limited
+- ⚠️ Higher cost than self-hosted at scale
+
+**Documentation:** [docs.pinecone.io](https://docs.pinecone.io/)
+
+---
+
+### Milvus
+
+Milvus is built for serious scale. It can handle trillions of vectors with distributed deployment. Zilliz (the company behind Milvus) offers a managed cloud version with a free tier.
+
+```python
+pip install pymilvus
+```
+
+```python
+from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+
+connections.connect("default", host="localhost", port="19530")
+
+fields = [
+    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+    FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=384)
+]
+schema = CollectionSchema(fields)
+collection = Collection("documents", schema)
+```
+
+**Strengths:**
+
+- ✅ Massive scale support
+- ✅ Distributed architecture
+- ✅ Strong hybrid search
+- ✅ Active open-source community
+
+**Limitations:**
+
+- ⚠️ Overkill for smaller projects
+- ⚠️ More complex deployment and operations
+- ⚠️ Heavier infrastructure requirements
+
+**Documentation:** [milvus.io/docs](https://milvus.io/docs)
+
+---
+
+## The Decision Framework
+
+If you are still unsure after using the picker tool above, here is the simple version:
+
+1. **Just learning?** Use ChromaDB. Install it in 10 seconds and focus on understanding RAG, not database ops.
+
+2. **Building a real product?** Use Qdrant. It has the best balance of features, performance, and ease of use for production RAG.
+
+3. **Need maximum speed with no server?** Use FAISS. But be prepared to build your own persistence and metadata handling.
+
+4. **Want zero infrastructure?** Use Pinecone. You pay more, but you manage nothing.
+
+5. **Operating at massive scale?** Use Milvus. It is built for billions to trillions of vectors across distributed clusters.
+
+The good news: switching between vector databases is straightforward. Your embedding model, chunking strategy, and prompt templates stay the same. Only the storage layer changes. So pick one, start building, and switch later if you need to.
+
+---
+
+## Sources
+
+- [ChromaDB Documentation](https://docs.trychroma.com/)
+- [Qdrant Documentation](https://qdrant.tech/documentation/)
+- [FAISS GitHub Repository](https://github.com/facebookresearch/faiss)
+- [Weaviate Documentation](https://weaviate.io/developers/weaviate)
+- [Pinecone Documentation](https://docs.pinecone.io/)
+- [Milvus Documentation](https://milvus.io/docs)

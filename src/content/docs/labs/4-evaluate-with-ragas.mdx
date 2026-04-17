@@ -1,0 +1,339 @@
+---
+title: "Lab 4: Evaluate with RAGAS"
+description: "Measure the quality of your RAG pipeline using the RAGAS framework. Learn to score faithfulness, relevancy, and precision — and diagnose what to fix."
+---
+
+<div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; background: rgba(74,222,128,0.05); border: 1px solid rgba(74,222,128,0.15); border-radius: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4ade80; background: rgba(74,222,128,0.1); padding: 0.125rem 0.5rem; border-radius: 9999px;">HANDS-ON LAB</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">~25 minutes</span>
+  <span style="font-size: 0.8125rem; color: #8b8b8b;">Intermediate</span>
+  <span style="font-size: 0.8125rem; color: #4ade80;">Engineer badge</span>
+</div>
+
+You built a RAG pipeline. It returns answers. But here is the uncomfortable question: **are the answers actually good?**
+
+"It seems to work" is not a metric. If you shipped a web app and your only test was "I clicked around and it seemed fine," you would get fired. RAG pipelines deserve the same rigour.
+
+RAGAS (Retrieval Augmented Generation Assessment) is an open-source framework that scores your pipeline on the dimensions that matter. This lab walks you through evaluating a real pipeline, interpreting the scores, and knowing exactly what to fix when scores are low.
+
+---
+
+## Prerequisites
+
+Before starting this lab, you need:
+
+- **Python 3.9+** installed
+- **pip** package manager
+- **A working RAG pipeline** from Lab 1 (or any pipeline that can produce a question, retrieved contexts, and a generated answer)
+- **An OpenAI API key** (RAGAS uses an LLM as a judge — a small number of calls, typically under $0.10 for this lab)
+
+:::tip
+If you do not have an OpenAI key, you can still follow along with the pre-computed example scores in each step. The concepts are what matter most.
+:::
+
+---
+
+## Step 1: Install RAGAS
+
+Install the RAGAS library and its dependencies:
+
+```bash
+pip install ragas datasets
+```
+
+RAGAS depends on `langchain` and `openai` under the hood. If you completed Lab 1, you already have those installed. If not, add them:
+
+```bash
+pip install langchain openai
+```
+
+Set your OpenAI API key as an environment variable:
+
+```bash
+export OPENAI_API_KEY="sk-your-key-here"
+```
+
+Verify the installation:
+
+```python
+import ragas
+print(ragas.__version__)
+```
+
+You should see a version number printed. You are ready to go.
+
+---
+
+## Step 2: Create a Test Dataset
+
+RAGAS evaluates your pipeline on a set of test cases. Each test case is a dictionary with four fields:
+
+| Field | What It Is | Example |
+|---|---|---|
+| `question` | The user's query | "What is ChromaDB?" |
+| `answer` | The answer your pipeline generated | "ChromaDB is a vector database..." |
+| `contexts` | The chunks your retriever returned (list of strings) | ["ChromaDB stores embeddings..."] |
+| `ground_truth` | The correct answer (written by a human) | "ChromaDB is an open-source embedding database..." |
+
+Here is a test dataset with 6 examples. In a real project, you would create 20 to 50 of these. For this lab, 6 is enough to see how scoring works:
+
+```python
+from datasets import Dataset
+
+test_data = {
+    "question": [
+        "What is ChromaDB and how does it store data?",
+        "How does cosine similarity work?",
+        "What is the difference between RAG and fine-tuning?",
+        "What embedding models are available for free?",
+        "How does HNSW indexing work?",
+        "What is hybrid search?",
+    ],
+    "answer": [
+        "ChromaDB is a vector database that stores embeddings using DuckDB as its backend. It supports both in-memory and persistent storage modes, making it easy to prototype locally.",
+        "Cosine similarity measures the angle between two vectors. If the angle is small, the vectors point in roughly the same direction, meaning the sentences are semantically similar. A score of 1.0 means identical direction.",
+        "RAG retrieves relevant documents at query time and feeds them to the LLM as context. Fine-tuning modifies the model's weights by training on your data. RAG is cheaper and easier to update. Fine-tuning gives you more control over the model's style and behaviour.",
+        "There are several free embedding models you can use. Hugging Face hosts models like BAAI/bge-small-en and sentence-transformers/all-MiniLM-L6-v2. These run locally and produce high-quality vectors for most use cases.",
+        "HNSW stands for Hierarchical Navigable Small World. It builds a multi-layer graph where the top layers have long-range connections for fast navigation and the bottom layers have short-range connections for precision. It runs in approximately O(log n) time.",
+        "Hybrid search combines semantic search with keyword search. The semantic component finds chunks that are similar in meaning using vector similarity. The keyword component finds exact term matches using algorithms like BM25. The scores are combined with configurable weights.",
+    ],
+    "contexts": [
+        ["ChromaDB stores embeddings using DuckDB as its default backend. It supports both in-memory and persistent storage modes. For persistent storage, data is saved to a local directory."],
+        ["Cosine similarity measures the angle between two vectors. A score of 1.0 means identical direction, meaning the sentences have the same meaning. A score of 0 means the vectors are orthogonal — completely unrelated."],
+        ["Retrieval-Augmented Generation combines search with generation. Instead of memorising facts, the model looks them up at query time.", "Fine-tuning allows you to customise a model's behaviour by training it on your own data. This modifies the model weights permanently."],
+        ["Hugging Face hosts thousands of free embedding models. Popular choices include BAAI/bge-small-en (384 dimensions) and sentence-transformers/all-MiniLM-L6-v2 (384 dimensions)."],
+        ["HNSW (Hierarchical Navigable Small World) is a graph-based index structure. It creates multiple layers: upper layers for fast coarse navigation and lower layers for precise nearest-neighbour search. Lookup time is approximately O(log n)."],
+        ["Hybrid search combines dense vector search (semantic) with sparse keyword search (BM25). This catches both meaning-based and exact-term matches. Weights are typically 60% semantic, 40% keyword."],
+    ],
+    "ground_truth": [
+        "ChromaDB is an open-source embedding database that uses DuckDB as its default storage backend. It supports in-memory and persistent storage modes.",
+        "Cosine similarity measures the cosine of the angle between two vectors. Values range from -1 to 1, where 1 means identical direction (same meaning) and 0 means no relation.",
+        "RAG retrieves external documents at inference time and provides them as context. Fine-tuning trains the model on custom data, modifying its weights. RAG is easier to update and cheaper, while fine-tuning offers more style control.",
+        "Free embedding models include BAAI/bge-small-en and sentence-transformers/all-MiniLM-L6-v2, both available on Hugging Face and runnable locally.",
+        "HNSW is a multi-layer graph index. Upper layers provide fast approximate search via long-range connections. Lower layers provide precise results. Runs in O(log n) time.",
+        "Hybrid search combines semantic vector search with keyword-based BM25 search to capture both meaning and exact term matches.",
+    ],
+}
+
+dataset = Dataset.from_dict(test_data)
+print(f"Test dataset created with {len(dataset)} examples")
+```
+
+:::caution
+Your test questions should cover the actual queries your users will ask. Do not just pick easy questions where the answer is a direct copy of a chunk. Include questions that require reasoning across multiple chunks, questions with no good answer in the corpus, and edge cases.
+:::
+
+---
+
+## Step 3: Run RAGAS Evaluation
+
+Now run the evaluation. RAGAS will score each test case on four metrics:
+
+```python
+from ragas import evaluate
+from ragas.metrics import (
+    faithfulness,
+    answer_relevancy,
+    context_precision,
+    context_recall,
+)
+
+# Run evaluation
+result = evaluate(
+    dataset=dataset,
+    metrics=[
+        faithfulness,
+        answer_relevancy,
+        context_precision,
+        context_recall,
+    ],
+)
+
+# Print overall scores
+print(result)
+```
+
+This takes 1 to 3 minutes depending on your dataset size. RAGAS makes LLM calls to judge each metric — this is why you need an API key.
+
+The output looks like this:
+
+```
+{
+    'faithfulness': 0.8833,
+    'answer_relevancy': 0.9127,
+    'context_precision': 0.8500,
+    'context_recall': 0.7917
+}
+```
+
+To see per-question scores (which is where the real insights are):
+
+```python
+df = result.to_pandas()
+print(df.to_string())
+```
+
+This gives you a row per test case with individual scores. **This is the most useful view.** Overall averages hide problems. A pipeline with 0.85 average faithfulness might have three questions at 1.0 and one at 0.4 — that one at 0.4 is where your pipeline is hallucinating.
+
+---
+
+## Step 4: Interpret the Scores
+
+Here is what each metric measures and what the scores mean:
+
+### Faithfulness (Is the answer grounded in the context?)
+
+| Score Range | Meaning |
+|---|---|
+| 0.9 – 1.0 | Excellent. Every claim in the answer comes from the retrieved chunks. |
+| 0.7 – 0.9 | Good. Most claims are grounded, but some may be inferred or added by the LLM. |
+| Below 0.7 | Problem. The LLM is adding information not present in the context — hallucinating. |
+
+### Answer Relevancy (Does the answer address the question?)
+
+| Score Range | Meaning |
+|---|---|
+| 0.9 – 1.0 | The answer directly and completely addresses what was asked. |
+| 0.7 – 0.9 | The answer is mostly on topic but may include extra or tangential information. |
+| Below 0.7 | The answer misses the point of the question or goes off topic. |
+
+### Context Precision (Are the retrieved chunks relevant?)
+
+| Score Range | Meaning |
+|---|---|
+| 0.9 – 1.0 | Every retrieved chunk is relevant to the question. Your retriever is sharp. |
+| 0.7 – 0.9 | Most chunks are relevant, but some noise is present. |
+| Below 0.7 | Your retriever is pulling in irrelevant chunks. This hurts the LLM's ability to answer. |
+
+### Context Recall (Did you retrieve everything you needed?)
+
+| Score Range | Meaning |
+|---|---|
+| 0.9 – 1.0 | The retrieved context covers all the information needed to answer correctly. |
+| 0.7 – 0.9 | Most of the needed information was retrieved, but some was missed. |
+| Below 0.7 | Important information is missing from the retrieved context. The answer will be incomplete. |
+
+:::note[Plain English]
+Think of it this way: **precision** asks "did I retrieve junk?" and **recall** asks "did I miss something important?" You want both to be high. Precision without recall means you are retrieving a few very relevant chunks but missing key information. Recall without precision means you are retrieving everything including the kitchen sink.
+:::
+
+---
+
+## Step 5: Diagnose and Improve
+
+This is where RAGAS becomes truly useful. Each low score points to a specific component in your pipeline that needs fixing.
+
+### If Faithfulness Is Low
+
+**The problem:** Your LLM is making things up instead of sticking to the provided context.
+
+**What to fix:**
+
+- Strengthen your system prompt: add explicit instructions like "Only use information from the provided context. If the context does not contain the answer, say so."
+- Reduce temperature to 0.0 or 0.1 — less creative, more faithful
+- Check if your chunks are too short. If a chunk is only a sentence fragment, the LLM may fill in gaps with invented information.
+
+```python
+# Example: tighter system prompt
+system_prompt = """Answer the question using ONLY the context provided below.
+If the context does not contain enough information, respond with:
+"I don't have enough information to answer this question."
+Do NOT add any information beyond what is in the context."""
+```
+
+### If Answer Relevancy Is Low
+
+**The problem:** The answer is going off-topic or not addressing what was asked.
+
+**What to fix:**
+
+- Check if the retrieved chunks are on-topic (look at context precision)
+- If chunks are relevant but the answer is not, your prompt may need work — explicitly instruct the LLM to answer the specific question asked
+- Try adding the query at both the beginning and end of your prompt (the "lost in the middle" pattern)
+
+### If Context Precision Is Low
+
+**The problem:** Your retriever is pulling in irrelevant chunks that dilute the good ones.
+
+**What to fix:**
+
+- Add a re-ranker (see Lab 3) to filter out noise after initial retrieval
+- Reduce top-K from 5 to 3 — fewer but more relevant chunks
+- Try hybrid search instead of pure semantic search
+- Add metadata filtering if your documents span multiple topics
+
+```python
+# Example: reduce top-K and add a relevance threshold
+results = vector_store.similarity_search_with_score(query, k=10)
+# Filter by minimum similarity score
+filtered = [(doc, score) for doc, score in results if score > 0.7]
+# Take only top 3
+top_results = filtered[:3]
+```
+
+### If Context Recall Is Low
+
+**The problem:** Important information exists in your corpus but your retriever is not finding it.
+
+**What to fix:**
+
+- Your chunks may be too large (burying key sentences in long paragraphs) or too small (splitting important context across chunks)
+- Try increasing chunk overlap so key sentences appear in multiple chunks
+- Try a different embedding model — some models handle your domain better than others
+- Add more documents to your corpus if the information is genuinely missing
+
+### The Improvement Loop
+
+Run evaluation, fix the weakest metric, run evaluation again. Repeat. This is the loop:
+
+```
+Score → Find lowest metric → Identify the component → Fix it → Re-score
+```
+
+Keep a log of your changes and scores:
+
+```python
+# Simple evaluation log
+import json
+from datetime import datetime
+
+log_entry = {
+    "timestamp": datetime.now().isoformat(),
+    "changes": "Added re-ranker, reduced top-K from 5 to 3",
+    "scores": {
+        "faithfulness": 0.92,
+        "answer_relevancy": 0.91,
+        "context_precision": 0.88,
+        "context_recall": 0.85,
+    }
+}
+
+with open("eval_log.jsonl", "a") as f:
+    f.write(json.dumps(log_entry) + "\n")
+```
+
+---
+
+## What You Built
+
+In this lab you:
+
+1. **Installed RAGAS** and set up an evaluation environment
+2. **Created a test dataset** with questions, answers, contexts, and ground truths
+3. **Ran a full evaluation** across four metrics
+4. **Learned to interpret scores** and understand what each one tells you about your pipeline
+5. **Built a diagnostic framework** — when a score is low, you now know exactly which component to fix
+
+This is the difference between a demo and a product. Demos work when you try them. Products work when your users try them. Evaluation is how you bridge that gap.
+
+:::tip
+Commit your test dataset to version control. As your pipeline evolves, you can re-run the same evaluation and track whether changes improve or degrade quality. This is your RAG regression test suite.
+:::
+
+---
+
+**Sources:**
+
+- Shahul Es et al. (2023) — "RAGAS: Automated Evaluation of Retrieval Augmented Generation" ([paper](https://arxiv.org/abs/2309.15217))
+- [RAGAS Documentation](https://docs.ragas.io/)
+- [RAGAS GitHub Repository](https://github.com/explodinggradients/ragas)

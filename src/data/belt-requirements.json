@@ -1,0 +1,56 @@
+{
+  "badges": [
+    {
+      "id": "explorer",
+      "title": "Explorer",
+      "iconName": "Search",
+      "icon": "search",
+      "color": "#94A3B8",
+      "borderStyle": "dashed",
+      "description": "Explain what RAG is and why it matters",
+      "requirements": {
+        "chapters": ["1-why-rag", "2-chunking"],
+        "playgroundQueries": 1
+      }
+    },
+    {
+      "id": "builder",
+      "title": "Builder",
+      "iconName": "Hammer",
+      "icon": "hammer",
+      "color": "#3B82F6",
+      "borderStyle": "solid",
+      "description": "Ingest a document and retrieve relevant chunks",
+      "requirements": {
+        "chapters": ["3-embeddings", "4-vector-databases", "5-retrieval"],
+        "labs": ["1-langchain-chromadb"]
+      }
+    },
+    {
+      "id": "engineer",
+      "title": "Engineer",
+      "iconName": "Zap",
+      "icon": "bolt",
+      "color": "#22C55E",
+      "borderStyle": "solid",
+      "description": "Build and evaluate a working RAG pipeline",
+      "requirements": {
+        "chapters": ["6-prompting", "7-evaluation"],
+        "labs": ["3-add-a-reranker"]
+      }
+    },
+    {
+      "id": "architect",
+      "title": "Architect",
+      "iconName": "Building2",
+      "icon": "building",
+      "color": "#F59E0B",
+      "borderStyle": "solid",
+      "description": "Design production RAG systems with confidence",
+      "requirements": {
+        "chapters": ["8-advanced-patterns"],
+        "labs": ["5-deploy-to-huggingface"]
+      }
+    }
+  ]
+}

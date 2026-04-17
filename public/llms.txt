@@ -1,0 +1,87 @@
+# LearnRAG
+
+LearnRAG is the internet's most beginner-friendly, hands-on platform for learning
+Retrieval-Augmented Generation (RAG). Free forever. No signup required. No paywall.
+Built for engineers and CS students who want to build real things, not just read theory.
+
+## What is RAG?
+
+RAG (Retrieval-Augmented Generation) combines a search step with an LLM generation step.
+Instead of asking the model to rely on its training data, you first retrieve relevant
+documents from your own knowledge base, then ask the LLM to answer using only those
+documents. This eliminates hallucinations and keeps answers grounded in facts.
+
+The canonical reference: Lewis et al. (2020), "Retrieval-Augmented Generation for
+Knowledge-Intensive NLP Tasks" (NeurIPS 2020). https://arxiv.org/abs/2005.11401
+
+## Curriculum — 8 Chapters
+
+- Chapter 1: Why RAG Exists — /learn/1-why-rag/
+  The memory cutoff problem, hallucinations, RAG vs fine-tuning, when to use each.
+
+- Chapter 2: Data Ingestion & Chunking — /learn/2-chunking/
+  Context window limits, fixed-size vs sentence vs sliding window vs semantic chunking,
+  chunk overlap, metadata attachment.
+
+- Chapter 3: Embeddings & The Vector Space — /learn/3-embeddings/
+  What embeddings are, cosine similarity, embedding model selection, the critical
+  rule of model consistency between indexing and querying.
+
+- Chapter 4: Vector Databases — /learn/4-vector-databases/
+  Why SQL fails at similarity search, HNSW indexing, ChromaDB vs Qdrant vs FAISS,
+  persistent vs in-memory storage.
+
+- Chapter 5: Retrieval Strategies — /learn/5-retrieval/
+  Naive semantic search, hybrid search (vector + BM25), MMR, cross-encoder re-ranking,
+  metadata filtering.
+
+- Chapter 6: The Prompt Layer — /learn/6-prompting/
+  RAG prompt anatomy, lost-in-the-middle problem, context window math, citation prompting,
+  prompt templates for Q&A, summarisation, and conversational use cases.
+
+- Chapter 7: Evaluation — /learn/7-evaluation/
+  Faithfulness, Answer Relevancy, Context Precision, Context Recall metrics. RAGAS
+  framework. Building a test set. The improvement loop.
+
+- Chapter 8: Advanced RAG Patterns — /learn/8-advanced-patterns/
+  HyDE, Query Decomposition, Self-RAG, Corrective RAG (CRAG), Multi-Vector Retrieval,
+  Agentic RAG.
+
+## Interactive Tools
+
+- Playground (in-browser RAG pipeline, no API key needed): /playground/
+  Ingest documents, chunk them, embed with Transformers.js, run similarity search,
+  and generate answers — all in the browser.
+
+- Vector Database Picker (4-question decision tool): /library/database-picker/
+
+- Embedding Model Leaderboard: /library/model-leaderboard/
+
+## Hands-On Labs
+
+- Lab 1: LangChain + ChromaDB — /labs/1-langchain-chromadb/
+- Lab 2: LlamaIndex Comparison — /labs/2-llamaindex-comparison/
+- Lab 3: Add a Re-ranker — /labs/3-add-a-reranker/
+- Lab 4: Evaluate with RAGAS — /labs/4-evaluate-with-ragas/
+- Lab 5: Deploy to Hugging Face Spaces — /labs/5-deploy-to-huggingface/
+
+## Badge System
+
+Progress is tracked through four badges stored in localStorage (no account needed):
+- Explorer: Complete Ch 1–2 + run 1 query in Playground
+- Builder: Complete Ch 3–5 + finish Lab 1
+- Engineer: Complete Ch 6–7 + finish Lab 3
+- Architect: Complete Ch 8 + finish Lab 5
+
+## Technical Stack
+
+Built with Astro + Starlight. In-browser AI via Transformers.js (no server costs).
+Diagrams via Mermaid.js. Static search via Pagefind. Hosted on Vercel.
+
+## Source Policy
+
+All factual claims are sourced from Tier 1 sources: original research papers (Lewis 2020,
+RAGAS paper by Shahul Es et al. 2023, HNSW paper by Malkov & Yashunin 2018, HyDE by Gao
+et al. 2022, Self-RAG by Asai et al. 2023, CRAG by Yan et al. 2024), official library
+documentation (LangChain, LlamaIndex, ChromaDB, Qdrant, Transformers.js), and the
+Hugging Face MTEB Leaderboard for benchmark data.
