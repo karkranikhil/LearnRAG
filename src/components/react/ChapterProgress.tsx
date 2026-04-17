@@ -10,15 +10,11 @@ import { BadgeIcons } from './icons';
 // primary: oklch(0.65 0.281 293) → #a855f7
 // primary-light: oklch(0.7 0.2 293) → #b87dff
 const C = {
-  bg: '#16131e',
-  card: 'rgba(30,26,41,0.5)',
-  fg: '#f0f0f0',
-  muted: '#8b8b8b',
-  dim: '#636363',
+  card: 'var(--sl-color-bg-nav)',
+  fg: 'var(--sl-color-text)',
   primary: '#a855f7',
   primaryLight: '#b87dff',
-  border: 'rgba(255,255,255,0.08)',
-  borderLight: 'rgba(255,255,255,0.06)',
+  border: 'var(--sl-color-hairline)',
   green: '#4ade80',
   amber: '#fbbf24',
 };
@@ -58,7 +54,7 @@ export default function ChapterProgress({ chapterNumber, totalChapters = 8, badg
       gap: '0.875rem',
       padding: '0.75rem 1rem',
       background: C.card,
-      border: `1px solid ${C.border}`,
+      border: `1px solid ${C.border as string}`,
       borderRadius: '0.75rem',
       marginBottom: '1.5rem',
       flexWrap: 'wrap',
@@ -72,7 +68,7 @@ export default function ChapterProgress({ chapterNumber, totalChapters = 8, badg
         flex: 1,
         minWidth: '80px',
         height: '3px',
-        background: C.borderLight,
+        background: C.border,
         borderRadius: '2px',
         overflow: 'hidden',
       }}>
@@ -99,7 +95,7 @@ export default function ChapterProgress({ chapterNumber, totalChapters = 8, badg
         <Icon size={12} strokeWidth={2.5} />
         {bc.label}
       </span>
-      <span style={{ color: C.dim, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+      <span style={{ color: 'var(--sl-color-text)', opacity: 0.5, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
         ~{readTime} min
       </span>
     </div>

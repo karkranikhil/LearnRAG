@@ -70,9 +70,9 @@ export default function HallucinationToggle() {
                 width: '5.5rem',
                 fontSize: '0.75rem',
                 borderRadius: '0.375rem',
-                border: `1px solid ${i === exampleIdx ? '#a855f7' : 'rgba(255,255,255,0.08)'}`,
+                border: `1px solid ${i === exampleIdx ? '#a855f7' : 'var(--sl-color-hairline)'}`,
                 background: i === exampleIdx ? 'rgba(168,85,247,0.1)' : 'transparent',
-                color: '#f0f0f0',
+                color: 'var(--sl-color-text)',
                 cursor: 'pointer',
                 textAlign: 'center' as const,
               }}

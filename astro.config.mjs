@@ -13,6 +13,7 @@ export default defineConfig({
       customCss: ['./src/styles/global.css'],
       components: {
         Head: './src/components/StarLightHead.astro',
+        ThemeSelect: './src/components/EmptyThemeSelect.astro',
       },
       head: [
         { tag: 'meta', attrs: { property: 'og:image', content: 'https://learnrag.online/Thumbnail.png' } },

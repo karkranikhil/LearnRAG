@@ -15,6 +15,8 @@ const sectionUrl = `https://learnrag.online/${pathParts[0] ?? ''}/`;
 ---
 
 <Default {...Astro.props}><slot /></Default>
+<script>document.documentElement.setAttribute('data-theme', 'dark');</script>
+<script defer src="https://cloud.umami.is/script.js" data-website-id="524a89b4-6608-448c-ac06-18c1b4be351b"></script>
 <script type="application/ld+json" set:html={title ? JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'Article',
