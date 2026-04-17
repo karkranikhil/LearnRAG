@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { usePlayground } from './usePlaygroundStore';
 
 function estimateTokens(text: string): number {
@@ -17,6 +17,16 @@ export default function GenerationPanel() {
   const { state, dispatch } = usePlayground();
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [showFullPrompt, setShowFullPrompt] = useState(false);
+  const [userGroqKey, setUserGroqKey] = useState('');
+  const [showRateLimitCard, setShowRateLimitCard] = useState(false);
+  const [keyInput, setKeyInput] = useState('');
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [clientRateWait, setClientRateWait] = useState(0);
+  const [modelLabel, setModelLabel] = useState('');
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Active key: user-supplied override > env var
+  const groqKey: string = userGroqKey.trim() || (import.meta.env.PUBLIC_GROQ_API ?? '');
 
   const hasResults = state.results.length > 0;
   const topChunks = useMemo(() => state.results.slice(0, 5), [state.results]);
@@ -37,56 +47,45 @@ export default function GenerationPanel() {
   const handleGenerate = async () => {
     if (!hasResults || topChunks.length === 0) return;
     dispatch({ type: 'SET_IS_GENERATING', payload: true });
-
-    await new Promise(r => setTimeout(r, 1200));
-
-    // Strip markdown formatting so headers/bold don't leak into the answer
-    const stripMarkdown = (text: string) =>
-      text
-        .replace(/^#+\s+/gm, '')   // ## headings
-        .replace(/\*\*(.+?)\*\*/g, '$1')  // **bold**
-        .replace(/\*(.+?)\*/g, '$1')      // *italic*
-        .replace(/`(.+?)`/g, '$1')        // `code`
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [link](url)
-        .replace(/^\s*[-*>]\s+/gm, '')    // list markers / blockquotes
-        .trim();
-
-    // Extract meaningful sentences (non-empty, not just symbols)
-    const getSentences = (text: string) =>
-      stripMarkdown(text)
-        .match(/[^.!?\n]+[.!?]+/g)
-        ?.map(s => s.trim())
-        .filter(s => s.length > 20) ?? [];
-
-    const topSentences = getSentences(topChunks[0].chunk.text);
-    const core = topSentences.slice(0, 2).join(' ').trim()
-      || stripMarkdown(topChunks[0].chunk.text).slice(0, 300);
-
-    let answerBody = core;
-
-    if (topChunks.length > 1) {
-      const supporting = getSentences(topChunks[1].chunk.text);
-      const extra = supporting[0]?.trim();
-      if (extra && extra !== core) {
-        answerBody += `\n\n${extra}`;
+    try {
+      const { generateAnswer } = await import('../../../lib/generation');
+      const { answer, model } = await generateAnswer(
+        state.query,
+        topChunks.map(r => ({ text: r.chunk.text, score: r.score })),
+        groqKey.trim() || undefined,
+      );
+      setModelLabel(model === 'groq' ? 'groq / llama-3.1-8b' : 'distilbert-squad');
+      const sourceList = topChunks
+        .slice(0, 2)
+        .map((r, i) => `[Chunk ${i + 1}] (${r.score.toFixed(3)})`)
+        .join(', ');
+      dispatch({ type: 'SET_GENERATED_ANSWER', payload: `${answer}\n\n---\nSources: ${sourceList}` });
+    } catch (err) {
+      const { GroqRateLimitError, GroqClientRateLimitError } = await import('../../../lib/generation');
+      if (err instanceof GroqClientRateLimitError) {
+        const secs = (err as { waitSeconds: number }).waitSeconds;
+        setClientRateWait(secs);
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        countdownRef.current = setInterval(() => {
+          setClientRateWait(prev => {
+            if (prev <= 1) { clearInterval(countdownRef.current!); countdownRef.current = null; return 0; }
+            return prev - 1;
+          });
+        }, 1000);
+      } else if (err instanceof GroqRateLimitError) {
+        setShowRateLimitCard(true);
+      } else {
+        console.error('Generation failed:', err);
       }
+    } finally {
+      dispatch({ type: 'SET_IS_GENERATING', payload: false });
     }
-
-    const sourceList = topChunks
-      .slice(0, 2)
-      .map((r, i) => `[Chunk ${i + 1}] (${r.score.toFixed(3)})`)
-      .join(', ');
-
-    const answer = `${answerBody}\n\n---\nSources: ${sourceList}\n\n[Simulated — connect an LLM API for real generation]`;
-
-    dispatch({ type: 'SET_GENERATED_ANSWER', payload: answer });
-    dispatch({ type: 'SET_IS_GENERATING', payload: false });
   };
 
   if (!hasResults) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: '#636363' }}>
-        Complete the Retrieve step first to generate an answer.
+        Complete the Search step first to generate an answer.
       </div>
     );
   }
@@ -94,25 +93,53 @@ export default function GenerationPanel() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-      {/* Generated answer — shown first once available */}
+      {/* Rate limit card */}
+      {showRateLimitCard && (
+        <div style={{ padding: '1rem', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '0.75rem' }}>
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fbbf24', marginBottom: '0.5rem' }}>Daily limit reached on the shared key</div>
+          <p style={{ fontSize: '0.75rem', color: '#8b8b8b', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+            Enter your own free Groq API key to continue. Get one at <strong style={{ color: '#c0c0c0' }}>console.groq.com</strong> — free tier gives 14,400 requests/day.
+          </p>
+          {!showKeyInput ? (
+            <button onClick={() => setShowKeyInput(true)} style={{ padding: '0.375rem 0.875rem', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '0.375rem', color: '#fbbf24', fontSize: '0.75rem', cursor: 'pointer' }}>
+              Enter API key
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="password" value={keyInput} onChange={e => setKeyInput(e.target.value)} placeholder="gsk_..."
+                style={{ flex: 1, padding: '0.375rem 0.625rem', background: 'rgba(22,19,30,0.6)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '0.375rem', color: '#e0e0e0', fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace" }} />
+              <button onClick={() => { setUserGroqKey(keyInput); setShowRateLimitCard(false); setShowKeyInput(false); }}
+                style={{ padding: '0.375rem 0.875rem', background: '#fbbf24', color: '#1a1208', border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>
+                Save
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Generated answer */}
       {state.generatedAnswer && (
         <div style={{ padding: '1.25rem', background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: '0.75rem' }}>
-          <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#b87dff', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: '0.75rem' }}>
-            Generated Answer
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#b87dff', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
+              Generated Answer
+            </div>
+            {modelLabel && (
+              <span style={{ fontSize: '0.6rem', fontFamily: "'JetBrains Mono', monospace", color: '#636363', background: 'rgba(255,255,255,0.04)', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>
+                {modelLabel}
+              </span>
+            )}
           </div>
-          {/* Answer body */}
           <div style={{ fontSize: '0.9rem', lineHeight: 1.75, color: '#e0e0e0', whiteSpace: 'pre-wrap', marginBottom: '0.75rem' }}>
             {state.generatedAnswer.split('\n\n---\n')[0]}
           </div>
-          {/* Sources + disclaimer */}
           {state.generatedAnswer.includes('---') && (
-            <div style={{ borderTop: '1px solid rgba(168,85,247,0.12)', paddingTop: '0.625rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ borderTop: '1px solid rgba(168,85,247,0.12)', paddingTop: '0.625rem' }}>
               {state.generatedAnswer.split('\n\n---\n').slice(1).join('\n\n---\n').split('\n').filter(Boolean).map((line, i) => (
                 <div key={i} style={{
                   fontSize: '0.75rem',
-                  fontFamily: line.startsWith('[Simulated') ? "'Inter', sans-serif" : "'JetBrains Mono', monospace",
+                  fontFamily: "'JetBrains Mono', monospace",
                   color: line.startsWith('Sources:') ? '#4ade80' : '#636363',
-                  fontStyle: line.startsWith('[Simulated') ? 'italic' : 'normal',
                 }}>
                   {line}
                 </div>
@@ -123,14 +150,19 @@ export default function GenerationPanel() {
       )}
 
       {/* Generate button */}
-      <button onClick={handleGenerate} disabled={state.isGenerating} style={{
-        padding: '0.75rem 2rem', background: state.isGenerating ? 'rgba(168,85,247,0.2)' : '#a855f7',
-        color: state.isGenerating ? '#636363' : '#f0f0f0', border: 'none', borderRadius: '0.5rem',
-        cursor: state.isGenerating ? 'wait' : 'pointer', fontWeight: 600, fontSize: '0.9375rem',
-        alignSelf: 'flex-start', boxShadow: state.isGenerating ? 'none' : '0 0 20px rgba(168,85,247,0.15)',
+      <button onClick={handleGenerate} disabled={state.isGenerating || clientRateWait > 0} style={{
+        padding: '0.75rem 2rem',
+        background: clientRateWait > 0 ? 'rgba(251,191,36,0.15)' : state.isGenerating ? 'rgba(168,85,247,0.2)' : '#a855f7',
+        color: clientRateWait > 0 ? '#fbbf24' : state.isGenerating ? '#636363' : '#f0f0f0',
+        border: clientRateWait > 0 ? '1px solid rgba(251,191,36,0.3)' : 'none',
+        borderRadius: '0.5rem',
+        cursor: (state.isGenerating || clientRateWait > 0) ? 'not-allowed' : 'pointer',
+        fontWeight: 600, fontSize: '0.9375rem',
+        alignSelf: 'flex-start',
+        boxShadow: (state.isGenerating || clientRateWait > 0) ? 'none' : '0 0 20px rgba(168,85,247,0.15)',
         transition: 'all 0.15s',
       }}>
-        {state.isGenerating ? 'Generating...' : state.generatedAnswer ? 'Regenerate Answer' : 'Generate Answer'}
+        {clientRateWait > 0 ? `Wait ${clientRateWait}s (3/min limit)` : state.isGenerating ? 'Generating...' : state.generatedAnswer ? 'Regenerate Answer' : 'Generate Answer'}
       </button>
 
       {/* Divider */}

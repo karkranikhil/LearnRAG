@@ -1,11 +1,12 @@
 import { useReducer, useCallback, useState, useMemo, useRef, useEffect } from 'react';
-import { Database, Layers, Brain, Search, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Database, Layers, Brain, Search, Sparkles, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { PlaygroundContext, defaultState, playgroundReducer, usePlayground } from './usePlaygroundStore';
 import { chunkText, STRATEGY_INFO, type ChunkStrategy } from '../../../lib/chunking';
 import { cosineSimilarity } from '../../../lib/similarity';
 import { rankBySimilarity } from '../../../lib/similarity';
 import type { EmbeddedChunk } from './usePlaygroundStore';
 import IngestionPanel from './IngestionPanel';
+import GenerationPanel from './GenerationPanel';
 
 const STEPS = [
   { id: 'stream' as const, num: 1, label: 'Data Stream', icon: Database, desc: 'Source load event' },
@@ -14,6 +15,7 @@ const STEPS = [
   { id: 'chunk' as const, num: 4, label: 'Chunking', icon: Layers, desc: 'Chunk DMO for search index' },
   { id: 'embed' as const, num: 5, label: 'Embedding', icon: Brain, desc: 'Create vector embeddings' },
   { id: 'retrieve' as const, num: 6, label: 'Retriever', icon: Search, desc: 'Vector search + answer' },
+  { id: 'generate' as const, num: 7, label: 'Generate', icon: Sparkles, desc: 'Compose grounded answer' },
 ] as const;
 
 type StepId = typeof STEPS[number]['id'];
@@ -34,7 +36,7 @@ interface DmoFieldValue {
 
 interface DataCloudOperation {
   id: string;
-  stage: 'DLO' | 'DMO' | 'Chunk DMO' | 'IDMO' | 'Retriever';
+  stage: 'DLO' | 'DMO' | 'Chunk DMO' | 'IDMO' | 'Retriever' | 'Generate';
   title: string;
   detail: string;
 }
@@ -86,8 +88,14 @@ const DATA_CLOUD_OPERATIONS: DataCloudOperation[] = [
   {
     id: 'op-query',
     stage: 'Retriever',
-    title: 'Run query retrieval and compose',
-    detail: 'Embed query, rank chunk candidates (semantic/hybrid), then compose grounded answer context.',
+    title: 'Run vector retrieval',
+    detail: 'Embed query, rank chunk candidates by cosine similarity (semantic/hybrid), return top-K results.',
+  },
+  {
+    id: 'op-generate',
+    stage: 'Generate',
+    title: 'Generate grounded answer',
+    detail: 'Assemble system prompt + retrieved chunks + user query, then call Groq (or distilbert) to produce a cited answer.',
   },
 ];
 
@@ -141,29 +149,30 @@ function scoreColor(score: number): string {
 }
 
 const STEP_IDX: Record<string, number> = {
-  stream: 0, dlo: 1, dmo: 2, chunk: 3, embed: 4, retrieve: 5,
+  stream: 0, dlo: 1, dmo: 2, chunk: 3, embed: 4, retrieve: 5, generate: 6,
 };
 
 function getOperationStatus(
   opId: string,
-  status: { hasData: boolean; hasChunks: boolean; hasEmbeddings: boolean; hasResults: boolean },
+  status: { hasData: boolean; hasChunks: boolean; hasEmbeddings: boolean; hasResults: boolean; hasAnswer: boolean },
   currentStep: string
 ): { done: boolean; active: boolean } {
-  const { hasData, hasChunks, hasEmbeddings, hasResults } = status;
+  const { hasData, hasChunks, hasEmbeddings, hasResults, hasAnswer } = status;
   const idx = STEP_IDX[currentStep] ?? 0;
 
   // "done" = data condition met AND user has already navigated past this operation's step
   // "active" = user is currently on this operation's step
-  if (opId === 'op-ingest') return { done: hasData && idx > 0,       active: currentStep === 'stream' };
-  if (opId === 'op-map')    return { done: hasData && idx > 2,       active: currentStep === 'dlo' || currentStep === 'dmo' };
-  if (opId === 'op-chunk')  return { done: hasChunks,                active: currentStep === 'chunk' };
-  if (opId === 'op-embed')  return { done: hasEmbeddings,            active: currentStep === 'embed' };
-  if (opId === 'op-query')  return { done: hasResults,               active: currentStep === 'retrieve' };
+  if (opId === 'op-ingest')   return { done: hasData && idx > 0,       active: currentStep === 'stream' };
+  if (opId === 'op-map')      return { done: hasData && idx > 2,       active: currentStep === 'dlo' || currentStep === 'dmo' };
+  if (opId === 'op-chunk')    return { done: hasChunks,                active: currentStep === 'chunk' };
+  if (opId === 'op-embed')    return { done: hasEmbeddings,            active: currentStep === 'embed' };
+  if (opId === 'op-query')    return { done: hasResults,               active: currentStep === 'retrieve' };
+  if (opId === 'op-generate') return { done: hasAnswer,                active: currentStep === 'generate' };
   return { done: false, active: false };
 }
 
 function DataCloudOperationsPanel({ status, currentStep }: {
-  status: { hasData: boolean; hasChunks: boolean; hasEmbeddings: boolean; hasResults: boolean };
+  status: { hasData: boolean; hasChunks: boolean; hasEmbeddings: boolean; hasResults: boolean; hasAnswer: boolean };
   currentStep: string;
 }) {
   const doneCount = DATA_CLOUD_OPERATIONS.filter(op => getOperationStatus(op.id, status, currentStep).done).length;
@@ -333,6 +342,14 @@ export default function PlaygroundApp() {
   const [state, dispatch] = useReducer(playgroundReducer, defaultState);
   const [currentStep, setCurrentStep] = useState<StepId>('stream');
   const [maxStepIdx, setMaxStepIdx] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const hasData = state.rawText.length > 0;
   const hasChunks = state.chunks.length > 0;
@@ -341,13 +358,16 @@ export default function PlaygroundApp() {
 
   // A step's connector fills only when the user has explicitly navigated past it,
   // not just because the underlying data happens to satisfy multiple steps at once.
+  const hasAnswer = state.generatedAnswer.length > 0;
+
   const stepComplete = {
     stream: maxStepIdx > 0,
     dlo: maxStepIdx > 1,
     dmo: maxStepIdx > 2,
     chunk: maxStepIdx > 3,
     embed: maxStepIdx > 4,
-    retrieve: hasResults,
+    retrieve: maxStepIdx > 5,
+    generate: hasAnswer,
   };
 
   const currentIdx = STEPS.findIndex(s => s.id === currentStep);
@@ -357,7 +377,8 @@ export default function PlaygroundApp() {
     (currentStep === 'dlo' && hasData) ||
     (currentStep === 'dmo' && hasData) ||
     (currentStep === 'chunk' && hasChunks) ||
-    (currentStep === 'embed' && hasEmbeddings)
+    (currentStep === 'embed' && hasEmbeddings) ||
+    (currentStep === 'retrieve' && hasResults)
   );
   const canGoBack = currentIdx > 0;
 
@@ -380,6 +401,27 @@ export default function PlaygroundApp() {
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
         WebkitFontSmoothing: 'antialiased', position: 'relative', overflow: 'hidden',
       }}>
+        {/* Mobile overlay */}
+        {isMobile && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: '#16131e', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '2rem', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '3.5rem', marginBottom: '1.25rem', lineHeight: 1 }}>🖥️</div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f0f0f0', marginBottom: '0.75rem' }}>
+              Best viewed on Desktop
+            </h2>
+            <p style={{ fontSize: '0.875rem', color: '#8b8b8b', lineHeight: 1.6, maxWidth: '300px', marginBottom: '1.5rem' }}>
+              The Data Cloud RAG Playground is interactive and requires a wider screen. Open it on a laptop or desktop for the full experience.
+            </p>
+            <a href="/" style={{ padding: '0.625rem 1.25rem', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '0.5rem', color: '#b87dff', fontSize: '0.875rem', textDecoration: 'none', fontWeight: 500 }}>
+              ← Back to LearnRAG
+            </a>
+          </div>
+        )}
+
         {/* Grid bg */}
         <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
         <div style={{ position: 'fixed', width: '500px', height: '500px', top: '-100px', right: '-150px', borderRadius: '9999px', background: 'rgba(168,85,247,0.04)', filter: 'blur(120px)', pointerEvents: 'none', zIndex: 0 }} />
@@ -415,7 +457,7 @@ export default function PlaygroundApp() {
             padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.04)',
             background: 'rgba(22,19,30,0.3)',
           }}>
-            <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center' }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', alignItems: 'center' }}>
               {STEPS.map((step, i) => {
                 const isActive = currentStep === step.id;
                 const isDone = stepComplete[step.id];
@@ -424,14 +466,15 @@ export default function PlaygroundApp() {
                   || (step.id === 'dmo' && hasData)
                   || (step.id === 'chunk' && hasData)
                   || (step.id === 'embed' && hasChunks)
-                  || (step.id === 'retrieve' && hasEmbeddings);
+                  || (step.id === 'retrieve' && hasEmbeddings)
+                  || (step.id === 'generate' && hasResults);
                 return (
                   <div key={step.id} style={{ display: 'flex', alignItems: 'center', flex: i < STEPS.length - 1 ? 1 : undefined }}>
                     <button
                       onClick={() => isReachable && setCurrentStep(step.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none',
-                        cursor: isReachable ? 'pointer' : 'default', padding: 0, opacity: isReachable ? 1 : 0.35,
+                        cursor: isReachable ? 'pointer' : 'default', padding: 0, opacity: isReachable ? 1 : 0.6,
                       }}
                     >
                       <div style={{
@@ -439,8 +482,8 @@ export default function PlaygroundApp() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '0.75rem', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
                         background: isDone ? '#a855f7' : isActive ? 'rgba(168,85,247,0.15)' : 'rgba(255,255,255,0.04)',
-                        border: `2px solid ${isDone ? '#a855f7' : isActive ? '#a855f7' : 'rgba(255,255,255,0.08)'}`,
-                        color: isDone ? '#fff' : isActive ? '#b87dff' : '#636363',
+                        border: `2px solid ${isDone ? '#a855f7' : isActive ? '#a855f7' : 'rgba(255,255,255,0.2)'}`,
+                        color: isDone ? '#fff' : isActive ? '#b87dff' : '#9ca3af',
                         transition: 'all 0.2s',
                       }}>
                         {isDone ? <Check size={14} strokeWidth={3} /> : step.num}
@@ -448,11 +491,11 @@ export default function PlaygroundApp() {
                       <div style={{ textAlign: 'left' }}>
                         <div style={{
                           fontSize: '0.75rem', fontWeight: isActive ? 600 : 500,
-                          color: isActive ? '#f0f0f0' : isDone ? '#b87dff' : '#636363',
+                          color: isActive ? '#f0f0f0' : isDone ? '#b87dff' : '#c0c0c0',
                           whiteSpace: 'nowrap',
                         }}>{step.label}</div>
                         <div style={{
-                          fontSize: '0.5625rem', color: isActive ? '#8b8b8b' : '#3a3a3a',
+                          fontSize: '0.5625rem', color: isActive ? '#8b8b8b' : '#7a7a8a',
                           fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap',
                         }}>{step.desc}</div>
                       </div>
@@ -484,11 +527,12 @@ export default function PlaygroundApp() {
               {currentStep === 'chunk' && <ChunkingStep />}
               {currentStep === 'embed' && <EmbeddingStep />}
               {currentStep === 'retrieve' && <RetrievalStep />}
+              {currentStep === 'generate' && <GenerateStep />}
             </div>
 
             {/* Right sidebar — Operations Runbook */}
             <div style={{ width: '260px', flexShrink: 0, position: 'sticky', top: '1rem' }}>
-              <DataCloudOperationsPanel status={{ hasData, hasChunks, hasEmbeddings, hasResults }} currentStep={currentStep} />
+              <DataCloudOperationsPanel status={{ hasData, hasChunks, hasEmbeddings, hasResults, hasAnswer }} currentStep={currentStep} />
             </div>
           </main>
 
@@ -787,7 +831,7 @@ function ChunkingStep() {
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Slicer: Build Chunk DMO / Search Index</h2>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Chunking</h2>
         <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5 }}>
           We slice long documents into section-aware chunks, apply overlap as a safety buffer, and optionally prepend
           the title field so each chunk keeps document identity.
@@ -1027,11 +1071,14 @@ function EmbeddingStep() {
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Translator: Indexing into IDMO</h2>
-        <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5 }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Embedding</h2>
+        <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5, marginBottom: '0.625rem' }}>
           Each chunk is translated into vector math and stored in the{" "}
           <strong style={{ color: '#c0c0c0' }}>Index DMO (IDMO)</strong>. In production, this stage typically uses
           models like <strong style={{ color: '#c0c0c0' }}>E5-Large-V2</strong> for meaning-aware retrieval.
+        </p>
+        <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5 }}>
+          Computers can't search text by <em>meaning</em> — but they can do math on numbers. An embedding model converts each chunk into a list of numbers called a <strong style={{ color: '#c0c0c0' }}>vector</strong>. Similar chunks produce similar numbers. That's the foundation of semantic search.
         </p>
       </div>
 
@@ -1066,9 +1113,14 @@ function EmbeddingStep() {
         </div>
       )}
 
+      {/* Model note */}
+      <div style={{ padding: '0.625rem 0.875rem', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)', borderRadius: '0.5rem', marginBottom: '1.25rem', fontSize: '0.75rem', color: '#a08050', lineHeight: 1.5 }}>
+        <strong style={{ color: '#fbbf24' }}>⚠ Important:</strong> The model you embed with must be the same model you search with. Swap models between steps and every similarity score collapses to noise — the number spaces are incompatible.
+      </div>
+
       {!hasEmbeddings && !state.isEmbedding && (
         <div style={{ padding: '3rem', textAlign: 'center', color: '#636363', background: 'rgba(30,26,41,0.3)', borderRadius: '0.75rem', border: '1px dashed rgba(255,255,255,0.06)' }}>
-          Select a model and click "Embed All Chunks" to convert text into vectors.
+          Select a model above and click <strong style={{ color: '#8b8b8b' }}>"Embed All Chunks"</strong> to convert every chunk into a vector. Everything runs in your browser — no API key, no cost.
         </div>
       )}
 
@@ -1080,8 +1132,11 @@ function EmbeddingStep() {
             <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#b87dff', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
               What does a vector look like?
             </div>
+            <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+              Each chunk becomes a list of <strong style={{ color: '#c0c0c0' }}>{state.embeddedChunks[0].embedding.length} numbers</strong>. These numbers don't mean anything individually — together they encode where this chunk sits in meaning-space. Click a chunk pill to inspect its raw vector and shape.
+            </p>
             <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Each chunk becomes a list of {state.embeddedChunks[0].embedding.length} numbers. Click a chunk to inspect its raw vector.
+              Notice that every chunk has a completely different bar shape below. A chunk about HNSW indexing looks nothing like a chunk about pricing. That visual fingerprint <em>is</em> the embedding.
             </p>
 
             {/* Chunk selector pills */}
@@ -1152,8 +1207,11 @@ function EmbeddingStep() {
             <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#4ade80', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
               How is similarity measured?
             </div>
+            <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+              <strong style={{ color: '#c0c0c0' }}>Cosine similarity</strong> asks: <em>"do these two vectors point in roughly the same direction?"</em> Identical direction = 1.0, completely opposite = 0.0. It doesn't matter how long the vectors are — only the angle counts.
+            </p>
             <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              <strong style={{ color: '#c0c0c0' }}>Cosine similarity</strong> measures the angle between two vectors. Identical direction = 1.0, completely different = 0.0. Pick two chunks to compare:
+              Try comparing two chunks on the same topic, then swap one for a chunk on a completely different topic. Watch the score and the bar chart change. When bars align, the score is high. When they diverge, it drops.
             </p>
 
             {/* Chunk A / B selectors */}
@@ -1264,8 +1322,11 @@ function EmbeddingStep() {
             <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#fbbf24', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
               Similarity Matrix — All Chunks
             </div>
+            <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+              Every cell shows the cosine similarity between two chunks. <span style={{ color: '#4ade80' }}>Green = high</span>, <span style={{ color: '#fbbf24' }}>amber = medium</span>, <span style={{ color: '#f87171' }}>red = low</span>. The diagonal is always 1.0 — every chunk is identical to itself.
+            </p>
             <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Every cell shows the cosine similarity between two chunks. <span style={{ color: '#4ade80' }}>Green = high</span>, <span style={{ color: '#fbbf24' }}>amber = medium</span>, <span style={{ color: '#f87171' }}>red = low</span>. Diagonal is always 1.0 (each chunk vs itself).
+              This matrix tells you something important: lots of green off the diagonal means your chunks are <strong style={{ color: '#c0c0c0' }}>redundant</strong> — retrieval will return near-duplicates. A mostly red matrix means your document covers many distinct topics and retrieval will be precise. <strong style={{ color: '#c0c0c0' }}>Click any cell</strong> to load that pair into the comparison above. Hover to preview both chunk texts.
             </p>
             <div style={{ overflow: 'auto' }}>
               <div style={{ display: 'inline-block' }}>
@@ -1321,8 +1382,11 @@ function EmbeddingStep() {
               <div style={{ fontSize: '0.6875rem', fontFamily: "'JetBrains Mono', monospace", color: '#3b82f6', letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: '0.75rem' }}>
                 2D Map — Similar chunks cluster together
               </div>
+              <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+                Your vectors are <strong style={{ color: '#c0c0c0' }}>{state.embeddedChunks[0].embedding.length} dimensions</strong> — impossible to visualise directly. <strong style={{ color: '#c0c0c0' }}>PCA</strong> (Principal Component Analysis) compresses them to 2D while preserving as much structure as possible. Chunks about similar topics appear close together.
+              </p>
               <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', marginBottom: '1rem', lineHeight: 1.5 }}>
-                {state.embeddedChunks[0].embedding.length} dimensions compressed to 2D via PCA. Chunks about similar topics appear near each other.
+                This is how retrieval works: when you type a query in the next step, it gets embedded by the same model and lands as a point on this map. The closest chunks to that point are your top results. If similar concepts cluster here, your retrieval will be accurate.
               </p>
               <div style={{ position: 'relative', width: '100%', height: '350px', background: 'rgba(10,8,16,0.5)', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
                 {[0.25, 0.5, 0.75].map(pos => (
@@ -1361,30 +1425,6 @@ function EmbeddingStep() {
 
 function RetrievalStep() {
   const { state, dispatch } = usePlayground();
-  const [modelStatus, setModelStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [userGroqKey, setUserGroqKey] = useState<string>(() => {
-    try { return localStorage.getItem('learnrag_groq_key') ?? ''; } catch { return ''; }
-  });
-  const [showRateLimitCard, setShowRateLimitCard] = useState(false);
-  const [keyInput, setKeyInput] = useState('');
-  const [showKeyInput, setShowKeyInput] = useState(false);
-  const [clientRateWait, setClientRateWait] = useState(0);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Active key: user-supplied override > env var
-  const groqKey: string = userGroqKey.trim() || (import.meta.env.PUBLIC_GROQ_API ?? '');
-  const usingGroq = groqKey.trim().length > 0;
-  const usingOwnKey = userGroqKey.trim().length > 0;
-
-  const assembledPrompt = useMemo(() => {
-    if (state.results.length === 0 || !state.query) return '';
-    const ctx = state.results
-      .map((r, i) => `[Source ${i + 1}] (score: ${r.score.toFixed(3)})\n${r.chunk.text}`)
-      .join('\n\n');
-    const model = groqKey.trim() ? 'Groq llama-3.1-8b-instant' : 'distilbert-uncased-squad';
-    return `QUESTION:\n${state.query}\n\n---\nCONTEXT (${state.results.length} chunks → ${model}):\n${ctx}`;
-  }, [state.results, state.query, groqKey]);
 
   const handleSearch = useCallback(async () => {
     if (!state.query.trim() || state.embeddedChunks.length === 0) return;
@@ -1419,60 +1459,10 @@ function RetrievalStep() {
     }
   }, [state.query, state.embeddedChunks, state.searchType, state.topK, dispatch]);
 
-  const handleGenerate = useCallback(async () => {
-    if (state.results.length === 0 || !state.query) return;
-    dispatch({ type: 'SET_IS_GENERATING', payload: true });
-    dispatch({ type: 'SET_GENERATED_ANSWER', payload: '' });
-    dispatch({ type: 'ADD_LOG', payload: 'Step 6b: Loading in-browser model (flan-t5-small)...' });
-    setModelStatus('loading');
-    try {
-      const { generateAnswer } = await import('../../../lib/generation');
-      setModelStatus('ready');
-      const usingGroq = groqKey.trim().length > 0;
-      dispatch({ type: 'ADD_LOG', payload: usingGroq ? 'Calling Groq llama-3.1-8b-instant...' : 'Model ready — running distilbert inference...' });
-      const { answer, confidence, model } = await generateAnswer(
-        state.query,
-        state.results.map(r => ({ text: r.chunk.text, score: r.score })),
-        groqKey.trim() || undefined,
-      );
-      const sourceList = state.results
-        .map((r, i) => `[Source ${i + 1}] (${r.score.toFixed(3)})`)
-        .join(', ');
-      const meta = model === 'groq'
-        ? `Sources: ${sourceList}`
-        : `Confidence: ${(confidence * 100).toFixed(1)}% · Sources: ${sourceList}`;
-      dispatch({ type: 'SET_GENERATED_ANSWER', payload: `${answer}\n\n---\n${meta}` });
-      dispatch({ type: 'ADD_LOG', payload: 'Answer generated from retrieved context.' });
-    } catch (err) {
-      const { GroqRateLimitError, GroqClientRateLimitError } = await import('../../../lib/generation');
-      if (err instanceof GroqClientRateLimitError) {
-        const secs = err.waitSeconds;
-        setClientRateWait(secs);
-        dispatch({ type: 'ADD_LOG', payload: `Slow down — max 10 requests/min. Wait ${secs}s.` });
-        if (countdownRef.current) clearInterval(countdownRef.current);
-        countdownRef.current = setInterval(() => {
-          setClientRateWait(prev => {
-            if (prev <= 1) { clearInterval(countdownRef.current!); return 0; }
-            return prev - 1;
-          });
-        }, 1000);
-      } else if (err instanceof GroqRateLimitError) {
-        setShowRateLimitCard(true);
-        dispatch({ type: 'ADD_LOG', payload: 'Groq daily limit reached — enter your own key to continue.' });
-      } else {
-        setModelStatus('error');
-        dispatch({ type: 'ADD_LOG', payload: 'Generation failed — see browser console.' });
-        console.error('Generation failed:', err);
-      }
-    } finally {
-      dispatch({ type: 'SET_IS_GENERATING', payload: false });
-    }
-  }, [state.results, state.query, dispatch]);
-
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Searcher: Retriever over IDMO</h2>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Retriever</h2>
         <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5 }}>
           Your question is converted to the same vector space, matched against IDMO vectors, and the best chunk text
           is pulled back from the Chunk DMO as answer context.
@@ -1529,165 +1519,14 @@ function RetrievalStep() {
             }}>
             {state.isSearching ? 'Searching...' : 'Search'}
           </button>
-
-
-          {state.results.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-              <button
-                onClick={handleGenerate}
-                disabled={state.isGenerating || clientRateWait > 0}
-                style={{
-                  padding: '0.625rem 1.25rem',
-                  background: clientRateWait > 0 ? 'rgba(251,191,36,0.15)'
-                    : state.isGenerating ? 'rgba(74,222,128,0.2)' : '#4ade80',
-                  color: clientRateWait > 0 ? '#fbbf24'
-                    : state.isGenerating ? '#636363' : '#0a2010',
-                  border: clientRateWait > 0 ? '1px solid rgba(251,191,36,0.3)' : 'none',
-                  borderRadius: '0.5rem',
-                  cursor: (state.isGenerating || clientRateWait > 0) ? 'not-allowed' : 'pointer',
-                  fontWeight: 600, fontSize: '0.875rem',
-                }}>
-                {clientRateWait > 0 ? `Wait ${clientRateWait}s (10/min limit)`
-                  : state.isGenerating ? 'Generating...'
-                  : state.generatedAnswer ? 'Regenerate' : 'Generate Answer'}
-              </button>
-              {modelStatus === 'loading' && !usingGroq && (
-                <div style={{ fontSize: '0.625rem', color: '#93c5fd', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.4 }}>
-                  ⬇ Downloading distilbert (~65 MB)<br />first time only, cached after
-                </div>
-              )}
-              {modelStatus === 'ready' && state.isGenerating && (
-                <div style={{ fontSize: '0.625rem', color: '#4ade80', fontFamily: "'JetBrains Mono', monospace" }}>
-                  ✓ Model ready — running inference...
-                </div>
-              )}
-              {modelStatus === 'error' && (
-                <div style={{ fontSize: '0.625rem', color: '#f87171', fontFamily: "'JetBrains Mono', monospace" }}>
-                  ✗ Model failed to load. Try again.
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Right: Results */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-          {/* Rate limit card — shown when shared key is exhausted */}
-          {showRateLimitCard && !usingOwnKey && (
-            <div style={{ padding: '1.25rem', background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '0.75rem' }}>
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fbbf24', marginBottom: '0.375rem' }}>
-                Daily limit reached on the shared key
-              </div>
-              <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', margin: '0 0 0.875rem', lineHeight: 1.5 }}>
-                Groq's free tier allows 14,400 requests/day. Use your own free key to keep going — takes 30 seconds to create.
-              </p>
-              <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: '0.8125rem', color: '#4ade80', display: 'inline-block', marginBottom: '0.875rem' }}>
-                → Get a free Groq key at console.groq.com
-              </a>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <input
-                  type={showKeyInput ? 'text' : 'password'}
-                  value={keyInput}
-                  onChange={e => setKeyInput(e.target.value)}
-                  placeholder="Paste your gsk_... key here"
-                  style={{
-                    flex: 1, padding: '0.5rem 0.75rem', fontSize: '0.8125rem',
-                    background: 'rgba(22,19,30,0.8)', border: '1px solid rgba(251,191,36,0.3)',
-                    borderRadius: '0.5rem', color: '#e0e0e0',
-                    fontFamily: "'JetBrains Mono', monospace",
-                  }}
-                />
-                <button onClick={() => setShowKeyInput(p => !p)} style={{
-                  padding: '0.5rem 0.625rem', background: 'transparent',
-                  border: '1px solid rgba(255,255,255,0.08)', borderRadius: '0.5rem',
-                  color: '#636363', cursor: 'pointer', fontSize: '0.75rem', whiteSpace: 'nowrap',
-                }}>
-                  {showKeyInput ? 'hide' : 'show'}
-                </button>
-                <button
-                  onClick={() => {
-                    const k = keyInput.trim();
-                    if (!k) return;
-                    try { localStorage.setItem('learnrag_groq_key', k); } catch { /* noop */ }
-                    setUserGroqKey(k);
-                    setShowRateLimitCard(false);
-                    setKeyInput('');
-                  }}
-                  disabled={!keyInput.trim()}
-                  style={{
-                    padding: '0.5rem 1rem', fontWeight: 600, fontSize: '0.8125rem',
-                    background: keyInput.trim() ? '#fbbf24' : 'rgba(251,191,36,0.2)',
-                    color: keyInput.trim() ? '#0a0a0a' : '#636363',
-                    border: 'none', borderRadius: '0.5rem',
-                    cursor: keyInput.trim() ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap',
-                  }}
-                >
-                  Use my key
-                </button>
-              </div>
-            </div>
-          )}
-
           {state.results.length === 0 && !state.isSearching && (
             <div style={{ padding: '3rem', textAlign: 'center', color: '#636363', background: 'rgba(30,26,41,0.3)', borderRadius: '0.75rem', border: '1px dashed rgba(255,255,255,0.06)' }}>
               Enter a query and click Search to find relevant chunks.
-            </div>
-          )}
-
-          {/* Generated Answer — shown above results once available */}
-          {state.generatedAnswer && (
-            <div style={{ padding: '1.25rem', background: 'rgba(168,85,247,0.04)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: '0.75rem' }}>
-              <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#b87dff', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: '0.625rem' }}>
-                Generated Answer{' '}
-                <span style={{ color: '#4ade80', marginLeft: '0.5rem' }}>
-                  {usingGroq ? 'groq / llama-3.1-8b' : 'distilbert-squad'}
-                </span>
-              </div>
-              {/* Answer body (before the --- divider) */}
-              <div style={{ fontSize: '0.9rem', lineHeight: 1.75, color: '#e0e0e0', whiteSpace: 'pre-wrap', marginBottom: '0.625rem' }}>
-                {state.generatedAnswer.split('\n\n---\n')[0]}
-              </div>
-              {/* Sources */}
-              {state.generatedAnswer.includes('---') && (
-                <div style={{ borderTop: '1px solid rgba(168,85,247,0.12)', paddingTop: '0.5rem', fontSize: '0.75rem', color: '#4ade80', fontFamily: "'JetBrains Mono', monospace" }}>
-                  {state.generatedAnswer.split('\n\n---\n')[1]}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Assembled Prompt — visible bridge between retrieval and generation */}
-          {state.results.length > 0 && assembledPrompt && (
-            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '0.75rem', overflow: 'hidden' }}>
-              <button
-                onClick={() => setShowPrompt(p => !p)}
-                style={{
-                  width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '0.625rem 0.875rem', background: 'rgba(30,26,41,0.6)',
-                  border: 'none', cursor: 'pointer',
-                }}
-              >
-                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#636363', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
-                  Assembled Prompt
-                </span>
-                <span style={{ fontSize: '0.6875rem', color: '#636363', fontFamily: "'JetBrains Mono', monospace" }}>
-                  {showPrompt ? '▲ hide' : '▼ show'}
-                </span>
-              </button>
-              {showPrompt && (
-                <pre style={{
-                  margin: 0, padding: '0.875rem',
-                  background: 'rgba(13,17,23,0.8)',
-                  fontSize: '0.6875rem', color: '#8b8b8b',
-                  fontFamily: "'JetBrains Mono', monospace",
-                  lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  maxHeight: '280px', overflow: 'auto',
-                }}>
-                  {assembledPrompt}
-                </pre>
-              )}
             </div>
           )}
 
@@ -1720,6 +1559,34 @@ function RetrievalStep() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════
+// STEP 7: Generate
+// ══════════════════════════════════════════════════
+
+function GenerateStep() {
+  const { state } = usePlayground();
+
+  if (!state.results.length) {
+    return (
+      <div style={{ padding: '3rem', textAlign: 'center', color: '#636363', background: 'rgba(30,26,41,0.3)', borderRadius: '0.75rem', border: '1px dashed rgba(255,255,255,0.06)' }}>
+        Go back to Retriever and run a search first.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Generate Answer</h2>
+        <p style={{ fontSize: '0.8125rem', color: '#8b8b8b', lineHeight: 1.5 }}>
+          Assemble retrieved chunks into a prompt and generate a grounded answer using Groq. The assembled prompt shows exactly what the LLM sees — system instructions, retrieved context, and your question.
+        </p>
+      </div>
+      <GenerationPanel />
     </div>
   );
 }
