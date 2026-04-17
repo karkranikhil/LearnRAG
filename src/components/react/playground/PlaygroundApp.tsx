@@ -1369,6 +1369,8 @@ function RetrievalStep() {
   const [showRateLimitCard, setShowRateLimitCard] = useState(false);
   const [keyInput, setKeyInput] = useState('');
   const [showKeyInput, setShowKeyInput] = useState(false);
+  const [clientRateWait, setClientRateWait] = useState(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Active key: user-supplied override > env var
   const groqKey: string = userGroqKey.trim() || (import.meta.env.PUBLIC_GROQ_API ?? '');
@@ -1442,8 +1444,19 @@ function RetrievalStep() {
       dispatch({ type: 'SET_GENERATED_ANSWER', payload: `${answer}\n\n---\n${meta}` });
       dispatch({ type: 'ADD_LOG', payload: 'Answer generated from retrieved context.' });
     } catch (err) {
-      const { GroqRateLimitError } = await import('../../../lib/generation');
-      if (err instanceof GroqRateLimitError) {
+      const { GroqRateLimitError, GroqClientRateLimitError } = await import('../../../lib/generation');
+      if (err instanceof GroqClientRateLimitError) {
+        const secs = err.waitSeconds;
+        setClientRateWait(secs);
+        dispatch({ type: 'ADD_LOG', payload: `Slow down — max 10 requests/min. Wait ${secs}s.` });
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        countdownRef.current = setInterval(() => {
+          setClientRateWait(prev => {
+            if (prev <= 1) { clearInterval(countdownRef.current!); return 0; }
+            return prev - 1;
+          });
+        }, 1000);
+      } else if (err instanceof GroqRateLimitError) {
         setShowRateLimitCard(true);
         dispatch({ type: 'ADD_LOG', payload: 'Groq daily limit reached — enter your own key to continue.' });
       } else {
@@ -1520,15 +1533,23 @@ function RetrievalStep() {
 
           {state.results.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-              <button onClick={handleGenerate} disabled={state.isGenerating}
+              <button
+                onClick={handleGenerate}
+                disabled={state.isGenerating || clientRateWait > 0}
                 style={{
                   padding: '0.625rem 1.25rem',
-                  background: state.isGenerating ? 'rgba(74,222,128,0.2)' : '#4ade80',
-                  color: state.isGenerating ? '#636363' : '#0a2010',
-                  border: 'none', borderRadius: '0.5rem', cursor: state.isGenerating ? 'wait' : 'pointer',
+                  background: clientRateWait > 0 ? 'rgba(251,191,36,0.15)'
+                    : state.isGenerating ? 'rgba(74,222,128,0.2)' : '#4ade80',
+                  color: clientRateWait > 0 ? '#fbbf24'
+                    : state.isGenerating ? '#636363' : '#0a2010',
+                  border: clientRateWait > 0 ? '1px solid rgba(251,191,36,0.3)' : 'none',
+                  borderRadius: '0.5rem',
+                  cursor: (state.isGenerating || clientRateWait > 0) ? 'not-allowed' : 'pointer',
                   fontWeight: 600, fontSize: '0.875rem',
                 }}>
-                {state.isGenerating ? 'Generating...' : state.generatedAnswer ? 'Regenerate' : 'Generate Answer'}
+                {clientRateWait > 0 ? `Wait ${clientRateWait}s (10/min limit)`
+                  : state.isGenerating ? 'Generating...'
+                  : state.generatedAnswer ? 'Regenerate' : 'Generate Answer'}
               </button>
               {modelStatus === 'loading' && !usingGroq && (
                 <div style={{ fontSize: '0.625rem', color: '#93c5fd', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.4 }}>

@@ -24,6 +24,33 @@ export class GroqRateLimitError extends Error {
   constructor() { super('Groq daily limit reached'); this.name = 'GroqRateLimitError'; }
 }
 
+export class GroqClientRateLimitError extends Error {
+  waitSeconds: number;
+  constructor(waitSeconds: number) {
+    super(`Too many requests — wait ${waitSeconds}s`);
+    this.name = 'GroqClientRateLimitError';
+    this.waitSeconds = waitSeconds;
+  }
+}
+
+// ── client-side rate limiter: 10 req / 60s per browser tab ───────────────────
+const WINDOW_MS = 60_000;
+const MAX_PER_WINDOW = 3;
+const requestLog: number[] = [];   // timestamps of recent requests
+
+function enforceClientRateLimit(): void {
+  const now = Date.now();
+  // Drop timestamps outside the rolling window
+  while (requestLog.length > 0 && now - requestLog[0] > WINDOW_MS) {
+    requestLog.shift();
+  }
+  if (requestLog.length >= MAX_PER_WINDOW) {
+    const waitMs = WINDOW_MS - (now - requestLog[0]);
+    throw new GroqClientRateLimitError(Math.ceil(waitMs / 1000));
+  }
+  requestLog.push(now);
+}
+
 // ── localStorage key ──────────────────────────────────────────────────────────
 export const GROQ_KEY_STORAGE = 'learnrag_groq_key';
 
@@ -63,6 +90,8 @@ async function generateWithGroq(
   chunks: { text: string; score: number }[],
   apiKey: string,
 ): Promise<GenerationResult> {
+  enforceClientRateLimit();   // throws GroqClientRateLimitError if over 10/min
+
   const contextBlock = chunks
     .map((c, i) => `[Source ${i + 1}]:\n${decodeEntities(c.text).trim()}`)
     .join('\n\n');
