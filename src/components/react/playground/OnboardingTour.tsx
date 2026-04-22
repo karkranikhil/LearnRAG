@@ -85,6 +85,16 @@ export default function OnboardingTour() {
       setTargetElement(target);
 
       if (target) {
+        // Debug: log element info
+        const rect = target.getBoundingClientRect();
+        console.log(`Tour step ${TOUR_STEPS[currentStep].id}:`, {
+          selector: TOUR_STEPS[currentStep].target,
+          element: target.tagName,
+          width: rect.width,
+          height: rect.height,
+          top: rect.top,
+        });
+
         // Store original styles
         const original = {
           zIndex: target.style.zIndex || getComputedStyle(target).zIndex,
@@ -237,19 +247,55 @@ export default function OnboardingTour() {
     return style;
   };
 
-  // Calculate spotlight position
+  // Calculate spotlight position with smart sizing
   const getSpotlightStyle = (): React.CSSProperties | null => {
     if (!targetElement) return null;
 
     const rect = targetElement.getBoundingClientRect();
-    const padding = 8;
+    let padding = 8;
+
+    // Sanity check - if element is suspiciously large, something is wrong
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+
+    let finalTop = rect.top;
+    let finalLeft = rect.left;
+    let finalWidth = rect.width;
+    let finalHeight = rect.height;
+
+    // For document cards - limit to visible cards only
+    if (step.id === 'documents') {
+      const maxHeight = Math.min(rect.height, 250); // ~2 rows of cards
+      finalHeight = maxHeight;
+    }
+
+    // For step indicator - just the step circles
+    if (step.id === 'steps') {
+      const maxHeight = 70; // Just the circles and labels
+      finalHeight = Math.min(rect.height, maxHeight);
+      padding = 6;
+    }
+
+    // For operations panel - limit width
+    if (step.id === 'operations') {
+      const maxWidth = 280;
+      finalWidth = Math.min(rect.width, maxWidth);
+    }
+
+    // Safety cap - never highlight more than 50% of viewport
+    if (finalHeight > viewportHeight * 0.5) {
+      finalHeight = viewportHeight * 0.5;
+    }
+    if (finalWidth > viewportWidth * 0.8) {
+      finalWidth = viewportWidth * 0.8;
+    }
 
     return {
       position: 'fixed',
-      top: `${rect.top - padding}px`,
-      left: `${rect.left - padding}px`,
-      width: `${rect.width + padding * 2}px`,
-      height: `${rect.height + padding * 2}px`,
+      top: `${finalTop - padding}px`,
+      left: `${finalLeft - padding}px`,
+      width: `${finalWidth + padding * 2}px`,
+      height: `${finalHeight + padding * 2}px`,
       borderRadius: '12px',
       border: '3px solid #a855f7',
       boxShadow: '0 0 0 6px rgba(168,85,247,0.3), 0 0 60px rgba(168,85,247,0.5), inset 0 0 0 2000px rgba(168,85,247,0.05)',
@@ -348,7 +394,7 @@ export default function OnboardingTour() {
         {/* Progress dots */}
         {!isCenter && (
           <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1rem' }}>
-            {TOUR_STEPS.filter((s) => s.target).map((s, i) => {
+            {TOUR_STEPS.filter((s) => s.target).map((s) => {
               const stepIndex = TOUR_STEPS.indexOf(s);
               const isCurrent = stepIndex === currentStep;
               const isPast = stepIndex < currentStep;

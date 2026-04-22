@@ -41,9 +41,8 @@ interface DmoFieldValue {
 
 interface DataCloudOperation {
   id: string;
-  stage: 'DLO' | 'DMO' | 'Chunk DMO' | 'IDMO' | 'Retriever' | 'Generate';
+  stage: 'Data Stream' | 'DLO Populate' | 'DMO Populate' | 'Chunking' | 'Embedding' | 'Retriever' | 'Generate';
   title: string;
-  detail: string;
 }
 
 // UDLO schema — source: Salesforce Data Cloud UDLO Schema Attributes doc
