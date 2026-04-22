@@ -7,6 +7,7 @@ import { rankBySimilarity } from '../../../lib/similarity';
 import type { EmbeddedChunk } from './usePlaygroundStore';
 import IngestionPanel from './IngestionPanel';
 import GenerationPanel from './GenerationPanel';
+import PlaygroundGuideBanner from './PlaygroundGuideBanner';
 
 const STEPS = [
   { id: 'ingest' as const,   num: 1, label: 'Ingest',    icon: FileText, desc: 'Load your document' },
@@ -233,6 +234,7 @@ export default function GenericPlaygroundApp() {
   const [currentStep, setCurrentStep] = useState<StepId>('ingest');
   const [maxStepIdx, setMaxStepIdx] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [guideReopenSignal, setGuideReopenSignal] = useState(0);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -327,6 +329,22 @@ export default function GenericPlaygroundApp() {
                 {hasChunks && <span style={{ color: '#60a5fa', background: 'rgba(59,130,246,0.08)', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>{state.chunks.length} chunks</span>}
                 {hasEmbeddings && <span style={{ color: '#4ade80', background: 'rgba(74,222,128,0.08)', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>{state.embeddedChunks[0].embedding.length}d vectors</span>}
               </div>
+              <button
+                type="button"
+                onClick={() => setGuideReopenSignal(x => x + 1)}
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#94a3b8',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '0.375rem',
+                  padding: '0.25rem 0.5rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Tips
+              </button>
               <a href="/playground/" style={{ fontSize: '0.75rem', color: '#94a3b8', fontFamily: "'JetBrains Mono', monospace", textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem', transition: 'color 0.15s', padding: '0.25rem 0.5rem', borderRadius: '0.375rem', border: '1px solid rgba(255,255,255,0.06)' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#e0e0e0')}
                 onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}>
@@ -334,6 +352,8 @@ export default function GenericPlaygroundApp() {
               </a>
             </div>
           </header>
+
+          <PlaygroundGuideBanner variant="generic" reopenSignal={guideReopenSignal} />
 
           {/* Step indicator */}
           <div style={{

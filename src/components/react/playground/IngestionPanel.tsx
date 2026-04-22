@@ -233,7 +233,7 @@ export default function IngestionPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' }} data-tour="document-cards">
         {SAMPLE_DATASETS.map(sample => {
           const isSelected = selectedSample === sample.id;
           return (

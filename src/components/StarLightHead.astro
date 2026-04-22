@@ -15,7 +15,48 @@ const sectionUrl = `https://learnrag.online/${pathParts[0] ?? ''}/`;
 ---
 
 <Default {...Astro.props}><slot /></Default>
-<script>document.documentElement.setAttribute('data-theme', 'dark');</script>
+<script is:inline>
+  // Force dark theme - block any theme switching
+  (function() {
+    // Set theme immediately
+    document.documentElement.setAttribute('data-theme', 'dark');
+
+    // Override localStorage to prevent theme persistence
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = function(key, value) {
+      if (key.includes('theme') || key.includes('starlight')) {
+        return; // Block theme-related storage
+      }
+      return originalSetItem.apply(this, arguments);
+    };
+
+    // Clear any existing theme preference
+    try {
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('theme') || key.includes('starlight-theme')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {}
+
+    // Watch for any theme changes and force it back to dark
+    const observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.attributeName === 'data-theme') {
+          const current = document.documentElement.getAttribute('data-theme');
+          if (current !== 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+  })();
+</script>
 <script defer src="https://cloud.umami.is/script.js" data-website-id="524a89b4-6608-448c-ac06-18c1b4be351b"></script>
 <script type="application/ld+json" set:html={title ? JSON.stringify({
   '@context': 'https://schema.org',

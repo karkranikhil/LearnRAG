@@ -7,6 +7,11 @@ import { rankBySimilarity } from '../../../lib/similarity';
 import type { EmbeddedChunk } from './usePlaygroundStore';
 import IngestionPanel from './IngestionPanel';
 import GenerationPanel from './GenerationPanel';
+import PlaygroundGuideBanner from './PlaygroundGuideBanner';
+import SalesforceGlossaryPanel from './SalesforceGlossaryPanel';
+import SalesforceStepExplainer from './SalesforceStepExplainer';
+import OnboardingTour from './OnboardingTour';
+import PlaygroundFooter from './PlaygroundFooter';
 
 const STEPS = [
   { id: 'stream' as const, num: 1, label: 'Data Stream', icon: Database, desc: 'Source load event' },
@@ -99,19 +104,6 @@ const DATA_CLOUD_OPERATIONS: DataCloudOperation[] = [
   },
 ];
 
-function toExternalId(label: string): string {
-  return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
-function toShortHash(input: string): string {
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    hash = (hash << 5) - hash + input.charCodeAt(i);
-    hash |= 0;
-  }
-  return `h_${Math.abs(hash).toString(16)}`;
-}
-
 // ── Shared styles ──
 
 const labelStyle: React.CSSProperties = {
@@ -185,7 +177,7 @@ function DataCloudOperationsPanel({ status, currentStep }: {
       border: '1px solid rgba(255,255,255,0.07)',
       borderRadius: '0.875rem',
       backdropFilter: 'blur(12px)',
-    }}>
+    }} data-tour="operations-panel">
       {/* Header */}
       <div style={{
         fontSize: '0.6875rem',
@@ -257,7 +249,7 @@ function DataCloudOperationsPanel({ status, currentStep }: {
 
               {/* Content */}
               <div style={{ paddingBottom: isLast ? 0 : '0.875rem', flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.25rem' }}>
                   <span style={{
                     fontSize: '0.75rem', fontWeight: 600,
                     color: opState.done ? '#d1fae5' : opState.active ? '#bfdbfe' : '#9ca3af',
@@ -270,19 +262,81 @@ function DataCloudOperationsPanel({ status, currentStep }: {
                   fontSize: '0.6875rem',
                   fontFamily: "'JetBrains Mono', monospace",
                   color: opState.done ? 'rgba(74,222,128,0.7)' : opState.active ? 'rgba(147,197,253,0.7)' : '#4b5563',
-                  marginBottom: '0.2rem',
                   letterSpacing: '0.04em',
                 }}>
                   {op.stage} · {opState.done ? '✓ done' : opState.active ? '⟳ running' : 'pending'}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.4 }}>
-                  {op.detail}
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── First-time hint banner ──
+
+function FirstTimeHintBanner() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    try {
+      const hasSeenHint = localStorage.getItem('learnrag-seen-playground-hint');
+      if (!hasSeenHint) {
+        setVisible(true);
+      }
+    } catch {
+      setVisible(true);
+    }
+  }, []);
+
+  const dismiss = () => {
+    try {
+      localStorage.setItem('learnrag-seen-playground-hint', 'true');
+    } catch {
+      // ignore
+    }
+    setVisible(false);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div style={{
+      margin: '1rem 1.5rem 0',
+      padding: '0.875rem 1rem',
+      background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(59,130,246,0.08))',
+      border: '1px solid rgba(168,85,247,0.25)',
+      borderRadius: '0.75rem',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: '0.75rem',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flex: 1 }}>
+        <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>👋</span>
+        <div style={{ fontSize: '0.875rem', color: '#e9d5ff', lineHeight: 1.4 }}>
+          <strong style={{ fontWeight: 600 }}>New here?</strong> Pick any sample document below to start your RAG pipeline →
+        </div>
+      </div>
+      <button
+        onClick={dismiss}
+        type="button"
+        style={{
+          padding: '0.25rem 0.625rem',
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: '0.375rem',
+          color: '#c4b5fd',
+          fontSize: '0.75rem',
+          fontWeight: 500,
+          cursor: 'pointer',
+          transition: 'background 0.15s',
+        }}
+      >
+        Got it
+      </button>
     </div>
   );
 }
@@ -343,6 +397,7 @@ export default function PlaygroundApp() {
   const [currentStep, setCurrentStep] = useState<StepId>('stream');
   const [maxStepIdx, setMaxStepIdx] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [guideReopenSignal, setGuideReopenSignal] = useState(0);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -444,6 +499,25 @@ export default function PlaygroundApp() {
                 {hasChunks && <span style={{ color: '#b87dff', background: 'rgba(168,85,247,0.08)', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>{state.chunks.length} chunks</span>}
                 {hasEmbeddings && <span style={{ color: '#4ade80', background: 'rgba(74,222,128,0.08)', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>{state.embeddedChunks[0].embedding.length}d vectors</span>}
               </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }} data-tour="help-buttons">
+                <button
+                  type="button"
+                  onClick={() => setGuideReopenSignal(x => x + 1)}
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#94a3b8',
+                    fontFamily: "'JetBrains Mono', monospace",
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '0.375rem',
+                    padding: '0.25rem 0.5rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Tips
+                </button>
+                <SalesforceGlossaryPanel />
+              </div>
               <a href="/playground/" style={{ fontSize: '0.75rem', color: '#94a3b8', fontFamily: "'JetBrains Mono', monospace", textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem', transition: 'color 0.15s', padding: '0.25rem 0.5rem', borderRadius: '0.375rem', border: '1px solid rgba(255,255,255,0.06)' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#e0e0e0')}
                 onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}>
@@ -452,12 +526,14 @@ export default function PlaygroundApp() {
             </div>
           </header>
 
+          <PlaygroundGuideBanner variant="salesforce" reopenSignal={guideReopenSignal} />
+
           {/* Step indicator */}
           <div style={{
             padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.04)',
             background: 'rgba(22,19,30,0.3)',
           }}>
-            <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', alignItems: 'center' }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', alignItems: 'center' }} data-tour="step-indicator">
               {STEPS.map((step, i) => {
                 const isActive = currentStep === step.id;
                 const isDone = stepComplete[step.id];
@@ -513,6 +589,9 @@ export default function PlaygroundApp() {
             </div>
           </div>
 
+          {/* First-time hint banner */}
+          {currentStep === 'stream' && <FirstTimeHintBanner />}
+
           {/* Top nav buttons */}
           <StepNav canGoBack={canGoBack} canGoNext={canGoNext} goBack={goBack} goNext={goNext}
             currentIdx={currentIdx} nextLabel={nextLabel} prevLabel={prevLabel} />
@@ -539,8 +618,14 @@ export default function PlaygroundApp() {
           {/* Bottom nav buttons */}
           <StepNav canGoBack={canGoBack} canGoNext={canGoNext} goBack={goBack} goNext={goNext}
             currentIdx={currentIdx} nextLabel={nextLabel} prevLabel={prevLabel} />
+
+          {/* Footer disclaimer */}
+          <PlaygroundFooter />
         </div>
       </div>
+
+      {/* Onboarding tour */}
+      <OnboardingTour />
     </PlaygroundContext.Provider>
   );
 }
@@ -553,12 +638,8 @@ function useSourceDataModelValues() {
   const { state } = usePlayground();
   const dloValues = useMemo(() => {
     if (!state.rawText) return {} as Record<string, string>;
-    const nowIso = state.sourceLoadedAt || new Date().toISOString();
     const sourceType = state.sourceType || 'TEXT';
-    const extension = sourceType === 'PDF' ? 'pdf' : sourceType === 'WEB' ? 'html' : sourceType === 'CHAT' ? 'txt' : 'md';
-    const externalId = toExternalId(state.sourceLabel || 'sample-record');
     const contentType = sourceType === 'PDF' ? 'application/pdf' : sourceType === 'WEB' ? 'text/html' : 'text/plain';
-    const fileName = `${externalId}.${extension}`;
     const filePath = state.sourceUrl || '/samples/source';
     const resolvedPath = `https://learnrag.online${filePath}`;
     const sizeBytes = String(state.rawHtml ? state.rawHtml.length : state.rawText.length);
@@ -581,7 +662,7 @@ function useSourceDataModelValues() {
       ETag__c: '',                                        // currently unused per UDLO schema
       KQ_FilePath__c: filePath,                           // Key Qualifier for FilePath__c
     };
-  }, [state.rawText, state.rawHtml, state.sourceLoadedAt, state.sourceType, state.sourceLabel, state.sourceUrl, state.chunkStrategy, state.documentSubtitle]);
+  }, [state.rawText, state.rawHtml, state.sourceType, state.sourceUrl]);
 
   // UDMO schema is identical to UDLO — auto-mapped from the UDLO.
   // Semantic fields (title, body, description) are configured at the Search Index layer, not here.
@@ -619,6 +700,7 @@ function DataStreamStep() {
           Select a source and trigger the data stream load event. This creates the record that feeds DLO and DMO stages.
         </p>
       </div>
+      <SalesforceStepExplainer step="stream" />
       <IngestionPanel />
       {state.rawText && (
         <div style={{ marginTop: '1.25rem', padding: '0.75rem 0.875rem', background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.15)', borderRadius: '0.5rem', fontFamily: "'JetBrains Mono', monospace" }}>
@@ -667,6 +749,7 @@ function DloPopulateStep() {
           Raw source metadata is populated into DLO fields with concrete values from the loaded stream event.
         </p>
       </div>
+      <SalesforceStepExplainer step="dlo" />
       <div style={{ marginBottom: '1.25rem', padding: '1rem', background: 'rgba(30,26,41,0.5)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '0.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
           <div>
@@ -730,6 +813,7 @@ function DmoPopulateStep() {
           Semantic enrichment (title, body text, description parsing) is configured at the <strong style={{ color: '#b87dff' }}>Search Index layer</strong> in the next step, not here.
         </p>
       </div>
+      <SalesforceStepExplainer step="dmo" />
       <div style={{ marginBottom: '1.25rem', padding: '1rem', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <div style={{ fontSize: '0.75rem', fontFamily: "'JetBrains Mono', monospace", color: '#93c5fd', letterSpacing: '0.08em', textTransform: 'uppercase' as const, fontWeight: 700 }}>
@@ -837,6 +921,7 @@ function ChunkingStep() {
           the title field so each chunk keeps document identity.
         </p>
       </div>
+      <SalesforceStepExplainer step="chunk" />
 
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '1.5rem', alignItems: 'start' }}>
         {/* Left: Controls */}
@@ -1081,6 +1166,7 @@ function EmbeddingStep() {
           Computers can't search text by <em>meaning</em> — but they can do math on numbers. An embedding model converts each chunk into a list of numbers called a <strong style={{ color: '#c0c0c0' }}>vector</strong>. Similar chunks produce similar numbers. That's the foundation of semantic search.
         </p>
       </div>
+      <SalesforceStepExplainer step="embed" />
 
       {/* Model selection + embed button */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1468,6 +1554,7 @@ function RetrievalStep() {
           is pulled back from the Chunk DMO as answer context.
         </p>
       </div>
+      <SalesforceStepExplainer step="retrieve" />
 
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '1.5rem', alignItems: 'start' }}>
         {/* Left: Controls */}
@@ -1586,6 +1673,7 @@ function GenerateStep() {
           Assemble retrieved chunks into a prompt and generate a grounded answer using Groq. The assembled prompt shows exactly what the LLM sees — system instructions, retrieved context, and your question.
         </p>
       </div>
+      <SalesforceStepExplainer step="generate" />
       <GenerationPanel />
     </div>
   );
