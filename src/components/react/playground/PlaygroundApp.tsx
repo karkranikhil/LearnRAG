@@ -67,40 +67,39 @@ const DLO_FIELDS: DloField[] = [
 
 const DATA_CLOUD_OPERATIONS: DataCloudOperation[] = [
   {
-    id: 'op-ingest',
-    stage: 'DLO',
-    title: 'Ingest source object record',
-    detail: 'Landing raw object fields into DLO with source metadata, identifiers, and timestamps.',
+    id: 'op-stream',
+    stage: 'Data Stream',
+    title: 'Trigger data stream event',
   },
   {
-    id: 'op-map',
-    stage: 'DMO',
-    title: 'Map semantic fields',
-    detail: 'Resolve core fields used for retrieval (Title, Body, Language, URL, Source) into DMO semantics.',
+    id: 'op-dlo',
+    stage: 'DLO Populate',
+    title: 'Populate UDLO fields',
+  },
+  {
+    id: 'op-dmo',
+    stage: 'DMO Populate',
+    title: 'Map UDMO from UDLO',
   },
   {
     id: 'op-chunk',
-    stage: 'Chunk DMO',
-    title: 'Create chunk rows',
-    detail: 'Slice body text into chunk records with overlap and chunk-level metadata for recall coverage.',
+    stage: 'Chunking',
+    title: 'Create chunk records',
   },
   {
     id: 'op-embed',
-    stage: 'IDMO',
+    stage: 'Embedding',
     title: 'Generate vectors and index',
-    detail: 'Translate each chunk to embeddings and write vector references for nearest-neighbor retrieval.',
   },
   {
-    id: 'op-query',
+    id: 'op-retrieve',
     stage: 'Retriever',
-    title: 'Run vector retrieval',
-    detail: 'Embed query, rank chunk candidates by cosine similarity (semantic/hybrid), return top-K results.',
+    title: 'Run vector search',
   },
   {
     id: 'op-generate',
     stage: 'Generate',
     title: 'Generate grounded answer',
-    detail: 'Assemble system prompt + retrieved chunks + user query, then call Groq (or distilbert) to produce a cited answer.',
   },
 ];
 
@@ -154,11 +153,12 @@ function getOperationStatus(
 
   // "done" = data condition met AND user has already navigated past this operation's step
   // "active" = user is currently on this operation's step
-  if (opId === 'op-ingest')   return { done: hasData && idx > 0,       active: currentStep === 'stream' };
-  if (opId === 'op-map')      return { done: hasData && idx > 2,       active: currentStep === 'dlo' || currentStep === 'dmo' };
+  if (opId === 'op-stream')   return { done: hasData && idx > 0,       active: currentStep === 'stream' };
+  if (opId === 'op-dlo')      return { done: hasData && idx > 1,       active: currentStep === 'dlo' };
+  if (opId === 'op-dmo')      return { done: hasData && idx > 2,       active: currentStep === 'dmo' };
   if (opId === 'op-chunk')    return { done: hasChunks,                active: currentStep === 'chunk' };
   if (opId === 'op-embed')    return { done: hasEmbeddings,            active: currentStep === 'embed' };
-  if (opId === 'op-query')    return { done: hasResults,               active: currentStep === 'retrieve' };
+  if (opId === 'op-retrieve') return { done: hasResults,               active: currentStep === 'retrieve' };
   if (opId === 'op-generate') return { done: hasAnswer,                active: currentStep === 'generate' };
   return { done: false, active: false };
 }
